@@ -8,7 +8,7 @@
 
 import Foundation
 
-public extension MastodonAPI {
+public extension MastodonServer {
     
     // MARK: - MastodonStatusItem
     struct StatusItem: Codable, Identifiable {

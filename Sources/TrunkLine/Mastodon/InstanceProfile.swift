@@ -5,7 +5,7 @@
 
 import Foundation
 
-public extension MastodonAPI {
+public extension MastodonServer {
     // MARK: - InstanceMeta
     struct InstanceProfile: Codable {
         let uri, title, shortDescription, instanceMetaDescription: String

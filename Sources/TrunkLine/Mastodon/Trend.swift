@@ -5,7 +5,7 @@
 
 import Foundation
 
-extension MastodonAPI {
+extension MastodonServer {
     // MARK: - InstanceTrendElement
     public struct TagTrend: Codable {
         let name: String

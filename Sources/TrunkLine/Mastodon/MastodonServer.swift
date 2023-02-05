@@ -21,13 +21,32 @@ public enum MastodonAPIError: Error, CustomStringConvertible {
 }
 
 //apiBase: "/api/v1"
-public struct MastodonAPI {
-    typealias Endpoint = APIServer.Endpoint
-    let server:APIServer.Location  //
-    let requestService:RequestService = RequestService()
+public struct MastodonServer:APIServer {
+    public private(set)var scheme: Scheme
+    public private(set) var host: URL
+    public private(set) var apiversion: APIVersion
     
-    var name:String {
-        server.name
+    public var version: String? {
+        apiversion.urlString
+    }
+    
+    public var apiBase: String? {
+        apiversion.urlString
+    }
+    
+    public enum APIVersion {
+        case v1
+        
+        var urlString:String {
+            "/api/v1"
+        }
+    }
+    
+    public init(host:URL, version:APIVersion) {
+        self.host =  host
+        self.apiversion =  version
+        self.scheme = .https
+        //self.requestService = HTTPRequestService()
     }
     
     //TODO: What happens in the app if the network connection fails?
@@ -58,53 +77,26 @@ public struct MastodonAPI {
         
     }
     
-    //MARK: Generic Object Fetcher
     
-    public func fetchObject<T:Codable>(ofType:T.Type, fromPath:String) async -> T? {
-        do {
-            let url = try APIServer.urlFrom(server: server, path: fromPath, usingAPIBase: true)
-            //print("URL for Instance Info: \(url)")
-            let result = try await requestService.fetchValue(ofType: ofType, from: url)
-            //print(result)
-            return result
-        } catch {
-            print(error)
-        }
-        return nil
-    }
-    
-    //MARK: Generic New Type of JSON printer
-    public func fetchJSON(fromPath:String) async -> String? {
-        do {
-            let url = try APIServer.urlFrom(server: server, path: fromPath, usingAPIBase: true)
-            print("URL for Instance Info: \(url)")
-            let result = try await requestService.fetchRawString(from: url)
-            print(result)
-            return result
-        } catch {
-            print(error)
-        }
-        return nil
-    }
     
     
     //MARK: - Timelines
     
     public func publicTimeline(itemCount:Int = 20) async throws -> [StatusItem] {
-            let url = try APIServer.urlFrom(server: server, endpoint: publicTimelineEndpoint(count: itemCount))
+        let url = try urlFrom(endpoint: publicTimelineEndpoint(count: itemCount))
         
             //let result = try await requestService.fetchValue(ofType: [StatusItem?].self, from: url)
         print("trying to fetch store")
-        let result = try await requestService.fetchCollectionOfOptionals(ofType: StatusItem.self, from: url)
+        let result = try await fetchCollectionOfOptionals(ofType: StatusItem.self, from: url)
         let validOnly = result.compactMap { $0 }
         print("\(result.count - validOnly.count) items could not be rendered")
         return validOnly
     }
     
     public func tagTimeline(tag:String, itemCount:Int = 1) async throws -> [StatusItem] {
-            let url = try APIServer.urlFrom(server: server, endpoint: singleTagEndpoint(for: tag, count: itemCount))
+            let url = try urlFrom(endpoint: singleTagEndpoint(for: tag, count: itemCount))
             print("trying to fetch store")
-            let result = try await requestService.fetchCollectionOfOptionals(ofType: StatusItem.self, from: url)
+            let result = try await fetchCollectionOfOptionals(ofType: StatusItem.self, from: url)
             let validOnly = result.compactMap { $0 }
             print("\(result.count - validOnly.count) items could not be rendered")
             return validOnly
@@ -115,8 +107,8 @@ public struct MastodonAPI {
     //MARK: - Account Information
     public func getFollowing(for account:String) async {
         do {
-            let url = try APIServer.urlFrom(server: server, path: pathForJSON(account: account, forKey: "following"), usingAPIBase: false)
-            let result = try await requestService.fetchRawString(from: url)
+            let url = try urlFrom(path: pathForJSON(account: account, forKey: "following"), usingAPIBase: false)
+            let result = try await fetchRawString(from: url, encoding: .utf8)
             print(result)
         } catch {
             print(error)

@@ -9,7 +9,7 @@
 import Foundation
 
 
-extension MastodonAPI {
+extension MastodonServer {
     
     func fetchCustomEmoji() {
         
