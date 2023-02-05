@@ -1,3 +1,4 @@
 # TrunkLine
 
-A description of this package.
+So far just a MastodonAPI.
+
