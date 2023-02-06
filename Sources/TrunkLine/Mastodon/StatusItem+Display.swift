@@ -9,7 +9,7 @@ import Foundation
 import APItizer
 
 
-extension MastodonServer.StatusItem {
+public extension MastodonServer.StatusItem {
     var contentText:AttributedString {
         if var attributedTest = self.content.parseAsHTML() {
             attributedTest.font = .body

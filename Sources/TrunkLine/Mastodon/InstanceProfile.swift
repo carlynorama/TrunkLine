@@ -8,16 +8,16 @@ import Foundation
 public extension MastodonServer {
     // MARK: - InstanceMeta
     struct InstanceProfile: Codable {
-        let uri, title, shortDescription, instanceMetaDescription: String
-        let email, version: String
-        let urls: Dictionary<String,String>//[ServiceURL]?
-        let stats: Stats?  //Dictionary<String,String>
-        let thumbnail: String?
-        let languages: [String]?
-        let registrations, approvalRequired, invitesEnabled: Bool
-        let configuration: Configuration? //Dictionary<String,String>
-        let contactAccount: ContactAccount?
-        let rules: [JSONAny]?
+        public let uri, title, shortDescription, instanceMetaDescription: String
+        public let email, version: String
+        public let urls: Dictionary<String,String>//[ServiceURL]?
+        public let stats: Stats?  //Dictionary<String,String>
+        public let thumbnail: String?
+        public let languages: [String]?
+        public let registrations, approvalRequired, invitesEnabled: Bool
+        public let configuration: Configuration? //Dictionary<String,String>
+        public let contactAccount: ContactAccount?
+        public let rules: [JSONAny]?
         
         enum CodingKeys: String, CodingKey {
             case uri, title
@@ -34,9 +34,9 @@ public extension MastodonServer {
     
     // MARK: - Configuration
     struct Configuration: Codable {
-        let statuses: Statuses
-        let mediaAttachments: MediaAttachments
-        let polls: Polls
+        public let statuses: Statuses
+        public let mediaAttachments: MediaAttachments
+        public let polls: Polls
         
         enum CodingKeys: String, CodingKey {
             case statuses
@@ -47,9 +47,9 @@ public extension MastodonServer {
     
     // MARK: - MediaAttachments
     struct MediaAttachments: Codable {
-        let supportedMIMETypes: [String]
-        let imageSizeLimit, imageMatrixLimit, videoSizeLimit, videoFrameRateLimit: Int
-        let videoMatrixLimit: Int
+        public let supportedMIMETypes: [String]
+        public let imageSizeLimit, imageMatrixLimit, videoSizeLimit, videoFrameRateLimit: Int
+        public let videoMatrixLimit: Int
         
         enum CodingKeys: String, CodingKey {
             case supportedMIMETypes = "supported_mime_types"
@@ -63,7 +63,7 @@ public extension MastodonServer {
     
     // MARK: - Polls
     struct Polls: Codable {
-        let maxOptions, maxCharactersPerOption, minExpiration, maxExpiration: Int
+        public let maxOptions, maxCharactersPerOption, minExpiration, maxExpiration: Int
         
         enum CodingKeys: String, CodingKey {
             case maxOptions = "max_options"
@@ -75,7 +75,7 @@ public extension MastodonServer {
     
     // MARK: - Statuses
     struct Statuses: Codable {
-        let maxCharacters, maxMediaAttachments, charactersReservedPerURL: Int
+        public let maxCharacters, maxMediaAttachments, charactersReservedPerURL: Int
         
         enum CodingKeys: String, CodingKey {
             case maxCharacters = "max_characters"
@@ -86,14 +86,14 @@ public extension MastodonServer {
     
     // MARK: - ContactAccount
     struct ContactAccount: Codable {
-        let id, username, acct, displayName: String
-        let locked, bot, discoverable, group: Bool
-        let createdAt, note: String
-        let url: String
-        let avatar, avatarStatic, header, headerStatic: String
-        let followersCount, followingCount, statusesCount: Int
-        let lastStatusAt: String
-        let emojis, fields: [JSONAny]
+        public let id, username, acct, displayName: String
+        public let locked, bot, discoverable, group: Bool
+        public let createdAt, note: String
+        public let url: String
+        public let avatar, avatarStatic, header, headerStatic: String
+        public let followersCount, followingCount, statusesCount: Int
+        public let lastStatusAt: String
+        public let emojis, fields: [JSONAny]
         
         enum CodingKeys: String, CodingKey {
             case id, username, acct
@@ -114,7 +114,7 @@ public extension MastodonServer {
     
     // MARK: - Stats
     struct Stats: Codable {
-        let userCount, statusCount, domainCount: Int
+        public let userCount, statusCount, domainCount: Int
         
         enum CodingKeys: String, CodingKey {
             case userCount = "user_count"

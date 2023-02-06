@@ -14,23 +14,23 @@ public extension MastodonServer {
     struct StatusItem: Codable, Identifiable {
         //Appears to be always
         public let id, createdAt: String
-        let account: Account
-        let content: String
-        let sensitive: Bool
-        let spoilerText, visibility: String
-        let repliesCount, reblogsCount, favouritesCount: Int
-        let uri, url: String
+        public let account: Account
+        public let content: String
+        public let sensitive: Bool
+        public let spoilerText, visibility: String
+        public let repliesCount, reblogsCount, favouritesCount: Int
+        public let uri, url: String
         
         //Appears to be optional
-        let language: String?
-        let inReplyToID, inReplyToAccountID: String?
-        let favourited, reblogged, muted, bookmarked: Bool?
-        let reblog: String?
-        let application: Application?
-        let mediaAttachments: [ItemMediaAttachment]?
-        let mentions, tags, emojis: [JSONAny]?
-        let card: Card?
-        let poll: Poll?
+        public let language: String?
+        public let inReplyToID, inReplyToAccountID: String?
+        public let favourited, reblogged, muted, bookmarked: Bool?
+        public let reblog: String?
+        public let application: Application?
+        public let mediaAttachments: [ItemMediaAttachment]?
+        public let mentions, tags, emojis: [JSONAny]?
+        public let card: Card?
+        public let poll: Poll?
         
         enum CodingKeys: String, CodingKey {
             case id
@@ -53,15 +53,15 @@ public extension MastodonServer {
     // MARK: - Account
     struct Account: Codable, Identifiable {
         public let id, username, acct, displayName: String
-        let locked, bot, discoverable, group: Bool
-        let createdAt, note: String
-        let url: String
-        let avatar, avatarStatic: String
-        let header, headerStatic: String
-        let followersCount, followingCount, statusesCount: Int
-        let lastStatusAt: String
-        let emojis: [JSONAny]
-        let fields: [Field]
+        public let locked, bot, discoverable, group: Bool
+        public let createdAt, note: String
+        public let url: String
+        public let avatar, avatarStatic: String
+        public let header, headerStatic: String
+        public let followersCount, followingCount, statusesCount: Int
+        public let lastStatusAt: String
+        public let emojis: [JSONAny]
+        public let fields: [Field]
         
         enum CodingKeys: String, CodingKey {
             case id, username, acct
@@ -99,12 +99,12 @@ public extension MastodonServer {
     
     // MARK: - Card
     struct Card: Codable {
-        let url: String
-        let title, cardDescription, type, authorName: String
-        let authorURL, providerName, providerURL, html: String
-        let width, height: Int
-        let image: String?
-        let embedURL: String
+        public let url: String
+        public let title, cardDescription, type, authorName: String
+        public let authorURL, providerName, providerURL, html: String
+        public let width, height: Int
+        public let image: String?
+        public let embedURL: String
         
         enum CodingKeys: String, CodingKey {
             case url, title
@@ -122,7 +122,7 @@ public extension MastodonServer {
     // MARK: - MediaAttachments
     typealias AttachmentArray = [ItemMediaAttachment]
     struct ItemMediaAttachments: Codable {
-        let attachments: AttachmentArray
+        public let attachments: AttachmentArray
         
         enum CodingKeys: String, CodingKey {
             case attachments = "media_attachments"
@@ -132,10 +132,10 @@ public extension MastodonServer {
     // MARK: - MediaAttachment
     struct ItemMediaAttachment: Codable,Identifiable {
         public let id, type: String
-        let url, previewURL, remoteURL: String
-        let previewRemoteURL, textURL: JSONNull?
-        let meta: MediaMeta?
-        let mediaAttachmentDescription, blurhash: String?
+        public let url, previewURL, remoteURL: String
+        public let previewRemoteURL, textURL: JSONNull?
+        public let meta: MastodonServer.MediaMeta?
+        public let mediaAttachmentDescription, blurhash: String?
         
         enum CodingKeys: String, CodingKey {
             case id, type, url
@@ -151,28 +151,28 @@ public extension MastodonServer {
     
     // MARK: - MediaMeta
     struct MediaMeta: Codable {
-        let original, small: MediaDimensions?
-        let focus:MediaFocus?
+        public let original, small: MediaDimensions?
+        public let focus:MediaFocus?
     }
     
     // MARK: - Dimensions
     struct MediaDimensions: Codable {
-        let width, height: Int?
-        let size: String?
-        let aspect: Double?
+        public let width, height: Int?
+        public let size: String?
+        public let aspect: Double?
     }
     
     struct MediaFocus: Codable {
-        let x:Double
-        let y:Double
+        public let x:Double
+        public let y:Double
     }
     
     // MARK: - Poll
     struct Poll: Codable {
-        let id, expiresAt: String
-        let expired, multiple: Bool
-        let votesCount, votersCount: Int
-        let options: [PollOption]
+        public let id, expiresAt: String
+        public let expired, multiple: Bool
+        public let votesCount, votersCount: Int
+        public let options: [PollOption]
         
         enum CodingKeys: String, CodingKey {
             case id
@@ -186,8 +186,8 @@ public extension MastodonServer {
     
     // MARK: - PollOption
     struct PollOption: Codable {
-        let title: String
-        let votesCount: Int
+        public let title: String
+        public let votesCount: Int
         
         enum CodingKeys: String, CodingKey {
             case title
@@ -198,7 +198,7 @@ public extension MastodonServer {
     
     // MARK: - Encode/decode helpers
     
-    public class JSONNull: Codable, Hashable {
+    class JSONNull: Codable, Hashable {
         
         public static func == (lhs: JSONNull, rhs: JSONNull) -> Bool {
             return true
@@ -438,93 +438,4 @@ public extension MastodonServer {
             }
         }
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    ////
-    ////  MNStatusItem.swift
-    ////  ActivityPubExplorer
-    ////
-    ////  Created by Labtanza on 10/30/22.
-    ////
-    //
-    //import Foundation
-    //
-    //struct MNStatusItem {
-    //    //    Description: ID of the status in the database.
-    //    //    Type: String (cast from an integer but not guaranteed to be a number)
-    //    //    Version history: Added in 0.1.0
-    //    let id:String
-    //
-    //    //    Description: URI of the status used for federation.
-    //    //    Type: String
-    //    //    Version history: Added in 0.1.0
-    //    let uri:String
-    //
-    //    //    Description: The date when this status was created.
-    //    //    Type: String (ISO 8601 Datetime)
-    //    //    Version history: Added in 0.1.0
-    //    let created_at:String
-    //
-    //    //    Description: The account that authored this status.
-    //    //    Type: Account
-    //    //    Version history: Added in 0.1.0
-    //    let account:String
-    //
-    //    //Description: HTML-encoded status content.
-    //    //Type: String (HTML)
-    //    //Version history: Added in 0.1.0
-    //    let content:String
-    //
-    //    //Description: Visibility of this status.
-    //    //Type: String (Enumerable oneOf)
-    //    //public = Visible to everyone, shown in public timelines.
-    //    //unlisted = Visible to public, but not included in public timelines.
-    //    //private = Visible to followers only, and to any mentioned users.
-    //    //direct = Visible only to mentioned users.
-    //    //Version history: Added in 0.9.9
-    //    let visibility:String
-    //
-    //    //Description: Is this status marked as sensitive content?
-    //    //Type: Boolean
-    //    //Version history: Added in 0.9.9
-    //    let sensitive:Bool
-    //
-    //    //Description: Subject or summary line, below which status content is collapsed until expanded.
-    //    //Type: String
-    //    //Version history: Added in 1.0.0
-    //    let spoiler_text:String
-    //
-    //    //Description: Media that is attached to this status.
-    //    //Type: Array of Attachment
-    //    //Version history: Added in 0.6.0
-    //    let media_attachments:String
-    //
-    //    //Description: The application used to post this status.
-    //    //Type: Application
-    //    //Version history: Added in 0.9.9
-    //    let application:String
-    //}
 }

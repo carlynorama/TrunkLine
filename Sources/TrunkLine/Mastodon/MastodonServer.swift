@@ -27,7 +27,7 @@ public struct MastodonServer:APIServer {
     public private(set) var apiversion: APIVersion
     
     public var version: String? {
-        apiversion.urlString
+        apiversion.description
     }
     
     public var apiBase: String? {
@@ -40,13 +40,16 @@ public struct MastodonServer:APIServer {
         var urlString:String {
             "/api/v1"
         }
+        
+        var description:String {
+            "v1"
+        }
     }
     
-    public init(host:URL, version:APIVersion) {
+    public init(host:URL, version:APIVersion, scheme:Scheme = .https) {
         self.host =  host
         self.apiversion =  version
-        self.scheme = .https
-        //self.requestService = HTTPRequestService()
+        self.scheme = scheme
     }
     
     //TODO: What happens in the app if the network connection fails?
