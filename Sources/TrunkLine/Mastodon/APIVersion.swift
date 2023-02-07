@@ -6,8 +6,7 @@
 //
 
 import Foundation
-
-
+import APItizer
 
 public struct APIVersion {
     let version = "1.1.1"
@@ -33,7 +32,7 @@ public struct APIVersion {
         // /statuses/
     ]
     
-    struct TimelineConfiguration {
+    struct TimelineConfiguration:QueryEncodeable {
         let local:Bool? //Boolean. Show only local statuses? Defaults to false.
         let remote:Bool? //Boolean. Show only remote statuses? Defaults to false.
         let only_media:Bool? //Boolean. Show only statuses with media attached? Defaults to false.
