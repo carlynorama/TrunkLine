@@ -11,6 +11,7 @@ import APItizer
 
 public extension MastodonServer.StatusItem {
     var contentText:AttributedString {
+        //.parseAsHTML defined in APItizer
         if var attributedTest = self.content.parseAsHTML() {
             attributedTest.font = .body
             return attributedTest
