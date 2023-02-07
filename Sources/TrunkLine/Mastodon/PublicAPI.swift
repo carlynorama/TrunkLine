@@ -12,9 +12,7 @@ import APItizer
 
 extension MastodonServer {
     
-    
-    //TODO: What happens in the app if the network connection fails?
-    
+
     //MARK: - Instance Data
     public func fetchInstanceProfile() async -> InstanceProfile? {
         await fetchObject(ofType: InstanceProfile.self, fromPath: apiversion.publicDataEndpointPaths["instance"]!)
@@ -69,7 +67,9 @@ extension MastodonServer {
     
     //see https://docs.joinmastodon.org/methods/timelines/
     private func publicTimelineEndpoint(for who:String = "public", count:Int) -> Endpoint {
-        Endpoint(path: "/timelines/\(who)", queryItems: [URLQueryItem(name: "limit", value: "\(count)")])
+        let config = APIVersion.TimelineConfiguration(limit: count)
+        return Endpoint(path: "/timelines/\(who)", queryItems: config.makeQueries())
+        //return Endpoint(path: "/timelines/\(who)", queryItems: [URLQueryItem(name: "limit", value: "\(count)")])
     }
     
 

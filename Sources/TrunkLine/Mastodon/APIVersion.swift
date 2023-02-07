@@ -32,7 +32,7 @@ public struct APIVersion {
         // /statuses/
     ]
     
-    struct TimelineConfiguration:QueryEncodeable {
+    struct TimelineConfiguration: QueryEncodable {
         let local:Bool? //Boolean. Show only local statuses? Defaults to false.
         let remote:Bool? //Boolean. Show only remote statuses? Defaults to false.
         let only_media:Bool? //Boolean. Show only statuses with media attached? Defaults to false.
@@ -40,6 +40,16 @@ public struct APIVersion {
         let since_id:String? //String. Return results newer than ID.
         let min_id:String? //String. Return results immediately newer than ID.
         let limit:Int?
+        
+        public init(local: Bool? = nil, remote: Bool? = nil, only_media: Bool? = nil, max_id: String? = nil, since_id: String? = nil, min_id: String? = nil, limit: Int? = nil) {
+            self.local = local
+            self.remote = remote
+            self.only_media = only_media
+            self.max_id = max_id
+            self.since_id = since_id
+            self.min_id = min_id
+            self.limit = limit
+        }
     }
     
     
