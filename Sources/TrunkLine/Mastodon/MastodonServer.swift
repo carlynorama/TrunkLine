@@ -21,7 +21,7 @@ public enum MastodonAPIError: Error, CustomStringConvertible {
 }
 
 //apiBase: "/api/v1"
-public struct MastodonServer:APIServer {
+public struct MastodonServer:APIServer, Authorizable {
     public private(set)var scheme: Scheme
     public private(set) var host: URL
     public private(set) var apiversion: APIVersion
