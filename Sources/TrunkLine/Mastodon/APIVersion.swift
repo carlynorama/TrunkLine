@@ -22,6 +22,7 @@ public struct APIVersion {
         "id" : "/users/{handle}",
         // /accounts/
         "account_by_id" : "{id_string}",
+        "verify" : "accounts/verify_credentials",
         // /account/
         "following" : "{id_string}/following",
         "followers" : "{id_string}/followers",

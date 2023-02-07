@@ -21,7 +21,7 @@ enum MastodonAPIError: Error, CustomStringConvertible {
 }
 
 //apiBase: "/api/v1"
-public struct MastodonServer:APIServer {
+public struct MastodonServer:APIServer, Authorizable {
     
     
     public private(set)var scheme: Scheme
@@ -42,7 +42,7 @@ public struct MastodonServer:APIServer {
         self._token = nil
     }
     
-    let verifyCredentials = "accounts/verify_credentials"
+   // let verifyCredentials = "accounts/verify_credentials"
     //TODO: /accounts/update_credentials
     
     
@@ -65,6 +65,21 @@ public struct MastodonServer:APIServer {
     public var isAuthorized: Bool {
         _token != nil
     }
+    
+    
+    public func checkCredential(token:String) {
+//        curl \
+//            -H 'Authorization: Bearer our_access_token_here' \
+//            https://mastodon.example/api/v1/apps/verify_credentials
+        let path = apiversion.publicDataEndpointPaths["verify"]
+        let url = try? urlFrom(path: path!, usingAPIBase: true)
+        print(url!.absoluteString)
+        let header = appendOAuthHeader(to:[:], token:token)
+        
+        
+    }
+    
+    
     
 }
     
