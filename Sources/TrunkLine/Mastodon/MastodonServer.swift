@@ -22,6 +22,7 @@ enum MastodonAPIError: Error, CustomStringConvertible {
 
 //apiBase: "/api/v1"
 public struct MastodonServer:APIServer, Authorizable {
+
     
     
     public private(set)var scheme: Scheme
@@ -67,15 +68,20 @@ public struct MastodonServer:APIServer, Authorizable {
     }
     
     
-    public func checkCredential(token:String) {
+    public func checkCredential(token:String) async throws -> Data {
 //        curl \
 //            -H 'Authorization: Bearer our_access_token_here' \
 //            https://mastodon.example/api/v1/apps/verify_credentials
+        
+    print("hello?")
         let path = apiversion.publicDataEndpointPaths["verify"]
         let url = try? urlFrom(path: path!, usingAPIBase: true)
         print(url!.absoluteString)
         let header = appendOAuthHeader(to:[:], token:token)
-        
+        let request =  HTTPRequestService.buildRequest(for: url!, with: header)!
+        let (data, response) = try await URLSession.shared.data(for: request)
+        print(data, response)
+        return data
         
     }
     
