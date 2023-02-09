@@ -15,12 +15,12 @@ extension MastodonServer {
 
     //MARK: - Instance Data
     public func fetchInstanceProfile() async -> InstanceProfile? {
-        await fetchObject(ofType: InstanceProfile.self, fromPath: apiversion.publicDataEndpointPaths["instance"]!)
+        await fetchObject(ofType: InstanceProfile.self, fromPath: apiversion.endpointPaths["instance"]!)
     }
     
     public func fetchInstanceTrends() async -> [TagTrend]? {
         //_ = await fetchJSON(fromPath: "/trends")
-        await fetchObject(ofType: [TagTrend].self, fromPath: apiversion.publicDataEndpointPaths["trends"]!)
+        await fetchObject(ofType: [TagTrend].self, fromPath: apiversion.endpointPaths["trends"]!)
     }
     
     //public func peers() {
@@ -55,7 +55,7 @@ extension MastodonServer {
         return validOnly
     }
     
-    public func tagTimeline(tag:String, itemCount:Int = 1) async throws -> [StatusItem] {
+    public func tagTimeline(tag:String, itemCount:Int = 5) async throws -> [StatusItem] {
         let url = try urlFrom(endpoint: singleTagEndpoint(for: tag, count: itemCount))
         print("trying to fetch store")
         let result = try await fetchCollectionOfOptionals(ofType: StatusItem.self, from: url)
@@ -95,8 +95,8 @@ public func getFollowing(for account:String) async {
 }
 
 private func buildAccountInfoPath(account:String, forKey key:String) throws -> String {
-    let root = apiversion.publicDataEndpointPaths["id"]?.replacingOccurrences(of: "{handle}", with: account) ?? ""
-    let path = apiversion.publicDataEndpointPaths[key]?.replacingOccurrences(of: "{id_string}", with: root)
+    let root = apiversion.endpointPaths["id"]?.replacingOccurrences(of: "{handle}", with: account) ?? ""
+    let path = apiversion.endpointPaths[key]?.replacingOccurrences(of: "{id_string}", with: root)
     
     print(path ?? "no path")
     

@@ -17,7 +17,8 @@ public extension MastodonServer {
         public let account: Account
         public let content: String
         public let sensitive: Bool
-        public let spoilerText, visibility: String
+        public let spoilerText: String
+        public let visibility: Visibility
         public let repliesCount, reblogsCount, favouritesCount: Int
         public let uri, url: String
         
@@ -48,6 +49,13 @@ public extension MastodonServer {
             case mentions, tags, emojis, card
             case poll
         }
+    }
+    
+    enum Visibility: String, Codable {
+        case direct = "direct"
+        case priv = "private"
+        case unlisted = "unlisted"
+        case pub = "public"
     }
     
     // MARK: - Account

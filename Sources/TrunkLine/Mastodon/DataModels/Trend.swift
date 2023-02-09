@@ -7,14 +7,14 @@ import Foundation
 
 public extension MastodonServer {
     // MARK: - InstanceTrendElement
-    public struct TagTrend: Codable {
+    struct TagTrend: Codable {
         public let name: String
         public let url: String
         public let history: [TagTrendHistory]
     }
     
     // MARK: - History
-    public struct TagTrendHistory: Codable {
+    struct TagTrendHistory: Codable {
         public let day, accounts, uses: String
     }
 }
