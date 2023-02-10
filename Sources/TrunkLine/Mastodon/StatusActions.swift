@@ -40,11 +40,13 @@ extension MastodonServer {
     }
     
     public func writeSimpleStatus(string:String) async throws {
+        print("trying to post... \(string)")
         let path = apiversion.endpointPaths["new_status"]
         let url = try? urlFrom(path: path!, usingAPIBase: true)
         var header:[String:String] = [:]
         if let authentication {
             header = try authentication.appendAuthHeader(to:header)
+            
         } else {
             throw MastodonAPIError.message("No authentication information avialable")
         }
@@ -56,8 +58,14 @@ extension MastodonServer {
             let request =  HTTPRequestService.buildRequest(for: url!, with: header, using: .post, sending:payload)!
             let (data, response) = try await URLSession.shared.data(for: request)
             print(data, response)
+            guard let response = response as? HTTPURLResponse,
+                  response.statusCode == 200  else  {
+                         throw MastodonAPIError("Did not post.")
+            }
             //return data
             
+        } else {
+            throw MastodonAPIError("Could not make valid form data.")
         }
     }
     
