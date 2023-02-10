@@ -49,14 +49,8 @@ public struct MastodonServer:APIServer, Authorizable {
     }
     
     //STEPONE - does the keychain still work.
-    public mutating func authorize(account:String, service:String, keyBase:String = Authentication.defaultKeyBase) throws {
-        do {
-            self.authentication =  try Authentication.makeFromKeyChain(account: account, service: service, keyBase: keyBase)
-        }
-        catch {
-            throw MastodonAPIError("Unable to authorize: \(error.localizedDescription)")
-        }
-        
+    public mutating func authorize(_ auth:Authentication) throws {
+        authentication = auth
     }
     
     public func checkCredential(authentication:Authentication) async throws -> Data {
