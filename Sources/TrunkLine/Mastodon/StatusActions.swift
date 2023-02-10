@@ -43,10 +43,10 @@ extension MastodonServer {
         let path = apiversion.endpointPaths["new_status"]
         let url = try? urlFrom(path: path!, usingAPIBase: true)
         var header:[String:String] = [:]
-        if let token {
-            header = appendAuthHeader(to:header, token:token)
+        if let authentication {
+            header = try authentication.appendAuthHeader(to:header)
         } else {
-            throw MastodonAPIError.message("No token available for authorized-only action")
+            throw MastodonAPIError.message("No authentication information avialable")
         }
         
         header["Content-Type"] = "application/x-www-form-urlencoded; charset=utf-8"
