@@ -20,7 +20,7 @@ public struct TrunkLine {
     
     public static func fetchAuthFromEnvironment(account:String, service:String, tokenKey:String, secretsFile:URL? = nil) throws -> Authentication {
         do {
-            let new = try Authentication.makeFromEnvironment(accountName: account, service: service, tokenKey: tokenKey, secretsFile: secretsFile)
+            let new = try Authentication.makeFromEnvironment(accountName: account, service: service, tokenKey: tokenKey)
             return new
         }
         catch {
