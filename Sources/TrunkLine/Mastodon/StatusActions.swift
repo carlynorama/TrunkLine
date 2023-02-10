@@ -53,7 +53,7 @@ extension MastodonServer {
         
         header["Content-Type"] = "application/x-www-form-urlencoded; charset=utf-8"
         
-        if let payload = try? APIVersion.StatusConfiguration(status: string).makeFormData() {
+        if let payload = try? APIVersion.StatusConfiguration(status: string).makeURLEncodedData() {
             //TODO: BAD - I'm pointing at a RequestService implmentation.
             let request =  HTTPRequestService.buildRequest(for: url!, with: header, using: .post, sending:payload)!
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -67,6 +67,8 @@ extension MastodonServer {
         } else {
             throw MastodonAPIError("Could not make valid form data.")
         }
+        
+        let formBuilder = MultiPartFormBuilder()
     }
     
 }
