@@ -141,7 +141,7 @@ public extension MastodonServer {
     struct ItemMediaAttachment: Codable,Identifiable {
         public let id, type: String
         public let url, previewURL, remoteURL: String
-        public let previewRemoteURL, textURL: JSONNull?
+        public let previewRemoteURL, textURL: String?
         public let meta: MastodonServer.MediaMeta?
         public let mediaAttachmentDescription, blurhash: String?
         

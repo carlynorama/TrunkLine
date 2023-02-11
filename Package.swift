@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "TrunkLine",
-    platforms: [ .macOS(.v12),
+    platforms: [ .macOS(.v13),
                  .iOS(.v15),
     ],
     products: [

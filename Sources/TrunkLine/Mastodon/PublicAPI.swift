@@ -15,12 +15,12 @@ extension MastodonServer {
 
     //MARK: - Instance Data
     public func fetchInstanceProfile() async -> InstanceProfile? {
-        await fetchObject(ofType: InstanceProfile.self, fromPath: apiversion.endpointPaths["instance"]!)
+        await fetchObject(ofType: InstanceProfile.self, fromPath: actions["instance"]!.fullPath)
     }
     
     public func fetchInstanceTrends() async -> [TagTrend]? {
         //_ = await fetchJSON(fromPath: "/trends")
-        await fetchObject(ofType: [TagTrend].self, fromPath: apiversion.endpointPaths["trends"]!)
+        await fetchObject(ofType: [TagTrend].self, fromPath: actions["trends"]!.fullPath)
     }
     
     //public func peers() {
@@ -64,18 +64,20 @@ extension MastodonServer {
         return validOnly
     }
     
-    
+    //TODO: Switch to "actions" lookup
     //see https://docs.joinmastodon.org/methods/timelines/
-    private func publicTimelineEndpoint(for who:String = "public", count:Int) -> Endpoint {
-        let config = APIVersion.TimelineConfiguration(limit: count)
-        return Endpoint(path: "/timelines/\(who)", queryItems: config.makeQueries())
+    private func publicTimelineEndpoint(count:Int) -> Endpoint {
+        let config = TimelineConfiguration(limit: count)
+        let path = actions["public_timeline"]?.fullPath
+        return Endpoint(path: path!, queryItems: config.makeQueries())
         //return Endpoint(path: "/timelines/\(who)", queryItems: [URLQueryItem(name: "limit", value: "\(count)")])
     }
     
 
     //see https://docs.joinmastodon.org/methods/timelines/#hashtag-timeline
-    private func singleTagEndpoint(for what:String, count:Int) -> Endpoint {
-        Endpoint(path: "/timelines/tag/\(what)", queryItems: [URLQueryItem(name: "limit", value: "\(count)")])
+    private func singleTagEndpoint(for tag:String, count:Int) -> Endpoint {
+        let path = actions["tag_timeline"]?.fullPath.replacingOccurrences(of: "{tag}", with: tag)
+        return Endpoint(path: path!, queryItems: [URLQueryItem(name: "limit", value: "\(count)")])
     }
 
     
@@ -95,8 +97,8 @@ public func getFollowing(for account:String) async {
 }
 
 private func buildAccountInfoPath(account:String, forKey key:String) throws -> String {
-    let root = apiversion.endpointPaths["id"]?.replacingOccurrences(of: "{handle}", with: account) ?? ""
-    let path = apiversion.endpointPaths[key]?.replacingOccurrences(of: "{id_string}", with: root)
+    let root = actions["id"]?.fullPath.replacingOccurrences(of: "{handle}", with: account) ?? ""
+    let path = actions[key]?.fullPath.replacingOccurrences(of: "{id_string}", with: root)
     
     print(path ?? "no path")
     
