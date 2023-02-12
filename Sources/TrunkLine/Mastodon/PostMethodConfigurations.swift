@@ -113,14 +113,18 @@ extension MastodonServer {
         func makeFormBody() -> MultiPartFormBuilder? {
             var bodyBuilder = MultiPartFormBuilder()
             bodyBuilder.appendAttachment(attachment: file) //attachmentName = thumbnail
+            print(String(data:bodyBuilder.currentState, encoding: .utf8))
             if let thumbnail {
                 bodyBuilder.appendAttachment(attachment: thumbnail)  //attachmentName = thumbnail
             }
             bodyBuilder.appendTextField(named: "description", value: description)
+            print(String(data:bodyBuilder.currentState, encoding: .utf8))
             if !(focus_x == nil && focus_y == nil) {
                 bodyBuilder.appendTextField(named: "focus", value: "\(focus_x ?? 0.5),\(focus_y ?? 0.5)")
             }
+            print(String(data:bodyBuilder.currentState, encoding: .utf8))
             if bodyBuilder.hasData { return bodyBuilder }
+            
             else { return nil }
         }
     }
