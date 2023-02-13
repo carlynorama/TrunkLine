@@ -117,88 +117,88 @@ extension MastodonServer {
 //
 //
 //    }
-    public func uploadMediaAttachment(imageURL:URL, token:String) async throws {
-        print("made it to upMeA")
-        guard var data = try? Data(contentsOf: imageURL) else {
-            throw MastodonAPIError("MinimalAttachable:No data for the file at the location given.")
-        }
-        let mimeType = imageURL.mimeType()
-        print("mimeType:\(mimeType)")
-        
-        // generate boundary string using a unique per-app string
-          let boundary = UUID().uuidString
-
-          
-        
-            let path:String? = actions["upload_media"]?.fullPath
-
-            let url = (try? urlFrom(path: path!, usingAPIBase: true))!
-            print("url: \(url)")
-        
-        //let url = URL(string: "https://postman-echo.com/post?test=123")!
-        //let url = URL(string: "https://reqres.in/api/")!
-
-          // Set the URLRequest to POST and to the specified URL
-          var urlRequest = URLRequest(url: url)
-          urlRequest.httpMethod = "POST"
-        
-        
-        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-          // Set Content-Type Header to multipart/form-data, this is equivalent to submitting form data with file upload in a web browser
-          // And the boundary is also set here
-          urlRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-
-        
-          let paramName = "file"
-          let fileName = "myFileName"
-
-          // Add the image data to the raw http request data
-          data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
-          data.append("Content-Disposition: form-data; name=\"\(paramName)\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
-          data.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
-          data.append(data)
-        
-        
-        let key = "description"
-        let value = "more pretty flowers for tests with doodles on top"
-        
-        var fieldString = "--\(boundary)\r\n"
-        fieldString += "Content-Disposition: form-data; name=\"\(key)\"\r\n"
-        fieldString += "Content-Type: text/plain; charset=UTF-8\r\n"
-        fieldString += "\r\n"
-        fieldString += "\(value)\r\n"
-        
-        data.append(fieldString.data(using: .utf8)!)
-        
-
-          data.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-        
-          // Send a POST request to the URL, with the data we created earlier
-        let (responseData, response) = try await URLSession.shared.upload(for: urlRequest, from: data)
-
-        print("----")
-        print(String(data:responseData, encoding: .utf8) ?? "Nothing")
-        print("----")
-        print(response)
-       print("----")
-          
-//          let session = URLSession.shared
-//          session.uploadTask(with: urlRequest, from: data, completionHandler: { responseData, response, error in
-//              if error == nil {
-//                  print("...printing response")
-//                  let jsonData = try? JSONSerialization.jsonObject(with: responseData!, options: .allowFragments)
-//                  if let json = jsonData as? [String: Any] {
-//                      print(json)
-//                  }
-//              } else {
-//                  print(error)
-//              }
-//          }).resume()
-        
-    }
+//    public func uploadMediaAttachment(imageURL:URL, token:String) async throws {
+//        print("made it to upMeA")
+//        guard var data = try? Data(contentsOf: imageURL) else {
+//            throw MastodonAPIError("MinimalAttachable:No data for the file at the location given.")
+//        }
+//        let mimeType = imageURL.mimeType()
+//        print("mimeType:\(mimeType)")
+//
+//        // generate boundary string using a unique per-app string
+//          let boundary = UUID().uuidString
+//
+//
+//
+//            let path:String? = actions["upload_media"]?.fullPath
+//
+//            let url = (try? urlFrom(path: path!, usingAPIBase: true))!
+//            print("url: \(url)")
+//
+//        //let url = URL(string: "https://postman-echo.com/post?test=123")!
+//        //let url = URL(string: "https://reqres.in/api/")!
+//
+//          // Set the URLRequest to POST and to the specified URL
+//          var urlRequest = URLRequest(url: url)
+//          urlRequest.httpMethod = "POST"
+//
+//
+//        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+//
+//          // Set Content-Type Header to multipart/form-data, this is equivalent to submitting form data with file upload in a web browser
+//          // And the boundary is also set here
+//          urlRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+//
+//
+//          let paramName = "file"
+//          let fileName = "myFileName"
+//
+//          // Add the image data to the raw http request data
+//          data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
+//          data.append("Content-Disposition: form-data; name=\"\(paramName)\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+//          data.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+//          data.append(data)
+//
+//
+//        let key = "description"
+//        let value = "more pretty flowers for tests with doodles on top"
+//
+//        var fieldString = "--\(boundary)\r\n"
+//        fieldString += "Content-Disposition: form-data; name=\"\(key)\"\r\n"
+//        fieldString += "Content-Type: text/plain; charset=UTF-8\r\n"
+//        fieldString += "\r\n"
+//        fieldString += "\(value)\r\n"
+//
+//        data.append(fieldString.data(using: .utf8)!)
+//
+//
+//          data.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+//
+//          // Send a POST request to the URL, with the data we created earlier
+//        let (responseData, response) = try await URLSession.shared.upload(for: urlRequest, from: data)
+//
+//        print("----")
+//        print(String(data:responseData, encoding: .utf8) ?? "Nothing")
+//        print("----")
+//        print(response)
+//       print("----")
+//
+////          let session = URLSession.shared
+////          session.uploadTask(with: urlRequest, from: data, completionHandler: { responseData, response, error in
+////              if error == nil {
+////                  print("...printing response")
+////                  let jsonData = try? JSONSerialization.jsonObject(with: responseData!, options: .allowFragments)
+////                  if let json = jsonData as? [String: Any] {
+////                      print(json)
+////                  }
+////              } else {
+////                  print(error)
+////              }
+////          }).resume()
+//
+//    }
     
-  }
+//  }
     
 
     
