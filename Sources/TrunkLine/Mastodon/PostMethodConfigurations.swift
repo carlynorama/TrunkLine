@@ -91,6 +91,22 @@ extension MastodonServer {
             self.scheduled_at = scheduled_at?.ISO8601Format()
         }
         
+        public func makeURLEncodedString() throws -> String {
+            var queries:[URLQueryItem] = []
+            
+            let dictionary = DictionaryEncoder.makeDictionary(fromEncodable: self)
+            
+            for (key, value) in dictionary {
+                if key != "media_ids" {
+                    queries.append(URLQueryItem(name: key, value: value))
+                } else {
+                    queries.append(contentsOf: QueryEncoder.arrayToQueryItems(baseStringForKey: "media_ids", array: self.media_ids!))
+                }
+            }
+            
+            return try URLEncoder.makeURLEncodedString(queryItems: queries)
+            
+        }
         
         
         //poll[options][]
