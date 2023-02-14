@@ -13,7 +13,7 @@ import APItizer
 //
 
 //
-struct APIPath {
+struct APIItem {
     let versionPath:String
     let endPointPath:String
     

@@ -19,7 +19,7 @@ public struct TrunkLine {
     }
     
     public static func loadDotEnv() throws {
-       try DotEnv.loadDotEnv()
+       try EnvironmentLoading.loadDotEnv()
     }
     
     public static func fetchAuthFromEnvironment(account:String, service:String, tokenKey:String, secretsFile:URL? = nil) throws -> Authentication {

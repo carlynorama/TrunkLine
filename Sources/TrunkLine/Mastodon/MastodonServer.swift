@@ -20,91 +20,102 @@ enum MastodonAPIError: Error, CustomStringConvertible {
     }
 }
 
-//apiBase: "/api/v1"
-public struct MastodonServer:APIServer, Authorizable {
-    
-    public private(set)var scheme: Scheme
-    public private(set) var host: URL
+public struct MastodonServer:APIService, Authorizable {
+    public private(set)var serverScheme: URIScheme
+    public var requestService: RequestService
+    public private(set) var serverHost: URL
+    public var serverPort: Int? = nil
     //public private(set) var apiversion = APIVersion()
     public private(set) var authentication: Authentication?
     
     
-    public var version: String? {
-        "Mixing v1 and v2"
+    public var defaultVersionBase: String? {
+        "/v1"
     }
     
-    public var apiBase: String? {
+    public var defaultAPIBase: String? {
         "/api"
     }
     
-    public init(host:URL, scheme:Scheme = .https) {
-        self.host =  host
-        self.scheme = scheme
+    public init(host:URL, scheme:URIScheme = .https) {
+        self.serverHost =  host
+        self.serverScheme = scheme
+        self.requestService = scheme.reccomendedRequestService
         self.authentication = nil
     }
     
     public var hasValidToken: Bool {
         //not exactly true.
-        authentication != nil
+        authentication != nil && authentication!.hasStoredToken
     }
     
     //STEPONE - does the keychain still work.
-    public mutating func authorize(_ auth:Authentication) throws {
+    public mutating func authorize(_ auth:Authentication) {
         authentication = auth
     }
-    
-    public func checkCredential(authentication:Authentication) async throws -> Data {
-        let path = actions["verify"]!.fullPath
-        let url = try? urlFrom(path: path, usingAPIBase: true)
-        let header = try authentication.appendAuthHeader(to:[:])
-        //TODO: BAD - I'm pointing at a RequestService implmentation.
-        let request =  HTTPRequestService.buildRequest(for: url!, with: header)!
-        let (data, _) = try await URLSession.shared.data(for: request)
-        return data
+    //account: "TrunkLineLib_tipsyrobot", service: "access-token", keyBase: ""
+    public mutating func tryAuthFromKeychain(account:String, service:String, keyBase:String) throws {
+        let auth = try TrunkLine.fetchAuthFromKeychain(account: account, service: service, keyBase: keyBase)
+        if auth.hasStoredToken {
+            authorize(auth)
+            //print("saved auth")
+            //print(self.hasValidToken)
+        } else {
+            throw MastodonAPIError("Could find in keychain, did not save to the environment")
+        }
+        //print(self)
+        
     }
     
-    let actions:Dictionary<String, APIPath> = [
-        "instance" : APIPath(endPointPath:"/instance"),
-        "trends" : APIPath(endPointPath:"/trends"),
+    public func checkCredential() async throws -> Data {
+        let path = actions["verify"]!.endPointPath
+        let url = try urlFrom(path: path, prependBasePath: true)
+        //print(url.absoluteString)
+        return try await fetchData(from:url, withAuth:true)
+    }
+    
+    let actions:Dictionary<String, APIItem> = [
+        "instance" : APIItem(endPointPath:"/instance"),
+        "trends" : APIItem(endPointPath:"/trends"),
         
-        "public_timeline" : APIPath(endPointPath:"/timelines/public"),
-        "tag_timeline" : APIPath(endPointPath:"/timelines/tag/{tag}"),
+        "public_timeline" : APIItem(endPointPath:"/timelines/public"),
+        "tag_timeline" : APIItem(endPointPath:"/timelines/tag/{tag}"),
         
-        "id" : APIPath(endPointPath:"/users/{handle}"),
+        "id" : APIItem(endPointPath:"/users/{handle}"),
         // use with /accounts/
-        "account_by_id" : APIPath(endPointPath:"{id_string}"),
-        "verify" : APIPath(endPointPath:"/apps/verify_credentials"),
-        "verify_account" : APIPath(endPointPath:"/accounts/verify_credentials"), //=> Account
+        "account_by_id" : APIItem(endPointPath:"{id_string}"),
+        "verify" : APIItem(endPointPath:"/apps/verify_credentials"),
+        "verify_account" : APIItem(endPointPath:"/accounts/verify_credentials"), //=> Account
         // use with /account/
-        "following" : APIPath(endPointPath:"{id_string}/following"),
-        "followers" : APIPath(endPointPath:"{id_string}/followers"),
-        "liked" : APIPath(endPointPath:"{id_string}/liked"),
-        "inbox" : APIPath(endPointPath:"{id_string}/inbox"),
-        "outbox" : APIPath(endPointPath:"{id_string}/outbox"),
-        "statuses" : APIPath(endPointPath:"{id_string}/statuses"),
+        "following" : APIItem(endPointPath:"{id_string}/following"),
+        "followers" : APIItem(endPointPath:"{id_string}/followers"),
+        "liked" : APIItem(endPointPath:"{id_string}/liked"),
+        "inbox" : APIItem(endPointPath:"{id_string}/inbox"),
+        "outbox" : APIItem(endPointPath:"{id_string}/outbox"),
+        "statuses" : APIItem(endPointPath:"{id_string}/statuses"),
         // use with /statuses/
-        "translate" : APIPath(endPointPath:"/statuses/{id_string}/translate"), //POST
-        "new_status" : APIPath(endPointPath:"/statuses/"),  //POST, form or urlencoded
-        "status_by_id" : APIPath(endPointPath:"/statuses/{id_string}"), //GET
-        "edit_status" : APIPath(endPointPath:"statuses/{id_string}"),   //PUT
-        "delete" : APIPath(endPointPath:"/statuses/{id_string}"), //DELETE
-        "thread_context" : APIPath(endPointPath:"/statuses/{id_string}/context"),
-        "reblogged_by" : APIPath(endPointPath:"/statuses/{id_string}/reblogged_by"),  //can use TimelineConfigurationShort
-        "favourited_by" : APIPath(endPointPath:"/statuses/{id_string}/favourited_by"), //can use TimelineConfigurationShort
-        "favourite" : APIPath(endPointPath:"/statuses/{id_string}/favourite"),
-        "unfavourite": APIPath(endPointPath:"/statuses/{id_string}/unfavourite"),
-        "boost": APIPath(endPointPath:"/statuses/{id_string}/reblog"),
-        "unboost" : APIPath(endPointPath:"/statuses/{id_string}/unreblog"),
-        "bookmark" : APIPath(endPointPath:"/statuses/{id_string}/bookmark"),
-        "unbookmark" : APIPath(endPointPath:"/statuses/{id_string}/unbookmark"),
-        "mute": APIPath(endPointPath:"/statuses/{id_string}/mute"),
-        "unmute" : APIPath(endPointPath:"/statuses/{id_string}/unmute"),
-        "pin" : APIPath(endPointPath:"/statuses/{id_string}/pin"),
-        "unpin" : APIPath(endPointPath:"/statuses/{id_string}/unpin"),
-        "history" : APIPath(endPointPath:"/statuses/{id_string}/history"),
-        "source" : APIPath(endPointPath:"/statuses/{id_string}/source"),//for editin)g
+        "translate" : APIItem(endPointPath:"/statuses/{id_string}/translate"), //POST
+        "new_status" : APIItem(endPointPath:"/statuses/"),  //POST, form or urlencoded
+        "status_by_id" : APIItem(endPointPath:"/statuses/{id_string}"), //GET
+        "edit_status" : APIItem(endPointPath:"statuses/{id_string}"),   //PUT
+        "delete" : APIItem(endPointPath:"/statuses/{id_string}"), //DELETE
+        "thread_context" : APIItem(endPointPath:"/statuses/{id_string}/context"),
+        "reblogged_by" : APIItem(endPointPath:"/statuses/{id_string}/reblogged_by"),  //can use TimelineConfigurationShort
+        "favourited_by" : APIItem(endPointPath:"/statuses/{id_string}/favourited_by"), //can use TimelineConfigurationShort
+        "favourite" : APIItem(endPointPath:"/statuses/{id_string}/favourite"),
+        "unfavourite": APIItem(endPointPath:"/statuses/{id_string}/unfavourite"),
+        "boost": APIItem(endPointPath:"/statuses/{id_string}/reblog"),
+        "unboost" : APIItem(endPointPath:"/statuses/{id_string}/unreblog"),
+        "bookmark" : APIItem(endPointPath:"/statuses/{id_string}/bookmark"),
+        "unbookmark" : APIItem(endPointPath:"/statuses/{id_string}/unbookmark"),
+        "mute": APIItem(endPointPath:"/statuses/{id_string}/mute"),
+        "unmute" : APIItem(endPointPath:"/statuses/{id_string}/unmute"),
+        "pin" : APIItem(endPointPath:"/statuses/{id_string}/pin"),
+        "unpin" : APIItem(endPointPath:"/statuses/{id_string}/unpin"),
+        "history" : APIItem(endPointPath:"/statuses/{id_string}/history"),
+        "source" : APIItem(endPointPath:"/statuses/{id_string}/source"),//for editin)g
         //media
-        "upload_media" : APIPath(versionPath: "/v2", endPointPath: "/media") //POST, Form
+        "upload_media" : APIItem(versionPath: "/v2", endPointPath: "/media") //POST, Form
     ]
 }
 

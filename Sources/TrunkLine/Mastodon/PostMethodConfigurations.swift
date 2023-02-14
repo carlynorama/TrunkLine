@@ -12,6 +12,7 @@ import APItizer
 extension MastodonServer {
     
     struct TimelineConfiguration: QueryEncodable {
+        
         let local:Bool? //Boolean. Show only local statuses? Defaults to false.
         let remote:Bool? //Boolean. Show only remote statuses? Defaults to false.
         let only_media:Bool? //Boolean. Show only statuses with media attached? Defaults to false.
@@ -45,7 +46,7 @@ extension MastodonServer {
         }
     }
     
-    public struct StatusConfiguration: QueryEncodable {
+    public struct StatusConfiguration:URLEncodable {
         //        //Headers
         //        let authheaderRequired = true
         //        let method:HTTPRequestService.Method = .post
@@ -103,30 +104,32 @@ extension MastodonServer {
         
     }
     
-    struct MediaAttachmentCofiguration:FormBodyEncodeable {
+    struct MediaAttachmentCofiguration:MultiPartFormEncodeable {
         let file:Attachable //REQUIRED Object. The file to be attached, encoded using multipart form data. The file must have a MIME type.
         let thumbnail:Attachable? //Object. The custom thumbnail of the media to be attached, encoded using multipart form data.
         let description:String //String. A plain-text description of the media, for accessibility purposes.
         let focus_x:Double?
         let focus_y:Double? //String. Two floating points (x,y), comma-delimited, ranging from -1.0 to 1.0. See Focal points for cropping media thumbnails for more information.
         
-        func makeFormBody() -> MultiPartFormBuilder? {
-            var bodyBuilder = MultiPartFormBuilder()
-            bodyBuilder.appendAttachment(attachment: file) //attachmentName = thumbnail
-            print(String(data:bodyBuilder.currentState, encoding: .utf8))
-            if let thumbnail {
-                bodyBuilder.appendAttachment(attachment: thumbnail)  //attachmentName = thumbnail
-            }
-            bodyBuilder.appendTextField(named: "description", value: description)
-            print(String(data:bodyBuilder.currentState, encoding: .utf8))
+        func makeFormBody(withTermination: Bool) throws -> (boundary: String, body: Data) {
+            var stringItems:Dictionary<String, CustomStringConvertible> = [
+                "description":description
+            ]
             if !(focus_x == nil && focus_y == nil) {
-                bodyBuilder.appendTextField(named: "focus", value: "\(focus_x ?? 0.5),\(focus_y ?? 0.5)")
+                stringItems["focus"]="\(focus_x ?? 0.5),\(focus_y ?? 0.5)"
             }
-            print(String(data:bodyBuilder.currentState, encoding: .utf8))
-            if bodyBuilder.hasData { return bodyBuilder }
             
-            else { return nil }
+            var attachments:[String:Attachable] = [
+                "file":file
+            ]
+            if let thumbnail {
+                attachments["thumbnail"]=thumbnail
+            }
+        
+            
+            return try MultiPartFormEncoder.makeBodyData(stringItems:stringItems, attachments:attachments, withTermination:withTermination)
         }
+        
     }
     
     
