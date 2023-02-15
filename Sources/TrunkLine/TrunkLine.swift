@@ -18,6 +18,10 @@ public struct TrunkLine {
         
     }
     
+    public static func loadDotEnv() throws {
+       try EnvironmentLoading.loadDotEnv()
+    }
+    
     public static func fetchAuthFromEnvironment(account:String, service:String, tokenKey:String, secretsFile:URL? = nil) throws -> Authentication {
         do {
             let new = try Authentication.makeFromEnvironment(accountName: account, service: service, tokenKey: tokenKey)
@@ -37,6 +41,5 @@ public struct TrunkLine {
         catch {
             throw MastodonAPIError("Unable to authorize: \(error.localizedDescription)")
         }
-        
     }
 }

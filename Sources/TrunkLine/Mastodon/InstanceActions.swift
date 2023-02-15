@@ -9,20 +9,22 @@ import Foundation
 import APItizer
 
 
+//TODO: Lots of !!
 
 extension MastodonServer {
     
 
     //MARK: - Instance Data
     public func fetchInstanceProfile() async -> InstanceProfile? {
-        await fetchObject(ofType: InstanceProfile.self, fromPath: apiversion.endpointPaths["instance"]!)
+        let url = try! urlFrom(path: actions["instance"]!.endPointPath)
+        return await fetchObject(ofType: InstanceProfile.self, from: url, withAuth: false)
     }
-    
+//    
     public func fetchInstanceTrends() async -> [TagTrend]? {
-        //_ = await fetchJSON(fromPath: "/trends")
-        await fetchObject(ofType: [TagTrend].self, fromPath: apiversion.endpointPaths["trends"]!)
+        let url = try! urlFrom(path: actions["trends"]!.endPointPath)
+        return await fetchObject(ofType: [TagTrend].self, from: url, withAuth: false)
     }
-    
+//    
     //public func peers() {
     //
     //}
@@ -49,7 +51,7 @@ extension MastodonServer {
         
         //let result = try await requestService.fetchValue(ofType: [StatusItem?].self, from: url)
         print("trying to fetch store")
-        let result = try await fetchCollectionOfOptionals(ofType: StatusItem.self, from: url)
+        let result = try await fetchCollectionOfOptionals(ofType: StatusItem.self, from: url, withAuth: false)
         let validOnly = result.compactMap { $0 }
         print("\(result.count - validOnly.count) items could not be rendered")
         return validOnly
@@ -58,56 +60,58 @@ extension MastodonServer {
     public func tagTimeline(tag:String, itemCount:Int = 5) async throws -> [StatusItem] {
         let url = try urlFrom(endpoint: singleTagEndpoint(for: tag, count: itemCount))
         print("trying to fetch store")
-        let result = try await fetchCollectionOfOptionals(ofType: StatusItem.self, from: url)
+        let result = try await fetchCollectionOfOptionals(ofType: StatusItem.self, from: url, withAuth: false)
         let validOnly = result.compactMap { $0 }
         print("\(result.count - validOnly.count) items could not be rendered")
         return validOnly
     }
     
-    
+    //TODO: Switch to "actions" lookup
     //see https://docs.joinmastodon.org/methods/timelines/
-    private func publicTimelineEndpoint(for who:String = "public", count:Int) -> Endpoint {
-        let config = APIVersion.TimelineConfiguration(limit: count)
-        return Endpoint(path: "/timelines/\(who)", queryItems: config.makeQueries())
+    private func publicTimelineEndpoint(count:Int) -> Endpoint {
+        let config = TimelineConfiguration(limit: count)
+        let path = actions["public_timeline"]?.fullPath
+        return Endpoint(path: path!, queryItems: config.makeQueries())
         //return Endpoint(path: "/timelines/\(who)", queryItems: [URLQueryItem(name: "limit", value: "\(count)")])
     }
     
 
     //see https://docs.joinmastodon.org/methods/timelines/#hashtag-timeline
-    private func singleTagEndpoint(for what:String, count:Int) -> Endpoint {
-        Endpoint(path: "/timelines/tag/\(what)", queryItems: [URLQueryItem(name: "limit", value: "\(count)")])
+    private func singleTagEndpoint(for tag:String, count:Int) -> Endpoint {
+        let path = actions["tag_timeline"]?.fullPath.replacingOccurrences(of: "{tag}", with: tag)
+        return Endpoint(path: path!, queryItems: [URLQueryItem(name: "limit", value: "\(count)")])
     }
 
     
 }
 
-extension MastodonServer {
-
-//MARK: - Account Information
-public func getFollowing(for account:String) async {
-    do {
-        let url = try urlFrom(path: buildAccountInfoPath(account: account, forKey: "following"), usingAPIBase: false)
-        let result = try await fetchRawString(from: url, encoding: .utf8)
-        print(result)
-    } catch {
-        print(error)
-    }
-}
-
-private func buildAccountInfoPath(account:String, forKey key:String) throws -> String {
-    let root = apiversion.endpointPaths["id"]?.replacingOccurrences(of: "{handle}", with: account) ?? ""
-    let path = apiversion.endpointPaths[key]?.replacingOccurrences(of: "{id_string}", with: root)
-    
-    print(path ?? "no path")
-    
-    guard var path else {
-        throw MastodonAPIError("Could not build path from keys")
-    }
-    
-    path = path.appending(".json")
-    print(path)
-    return path
-}
+//extension MastodonServer {
+//
+////MARK: - Account Information
+//public func getFollowing(for account:String) async {
+//    do {
+//        let url = try urlFrom(path: buildAccountInfoPath(account: account, forKey: "following"), prependBasePath: false)
+//        let result = try await fetchRawString(from: url, encoding: .utf8)
+//        print(result)
+//    } catch {
+//        print(error)
+//    }
+//}
+//
+//private func buildAccountInfoPath(account:String, forKey key:String) throws -> String {
+//    let root = actions["id"]?.fullPath.replacingOccurrences(of: "{handle}", with: account) ?? ""
+//    let path = actions[key]?.fullPath.replacingOccurrences(of: "{id_string}", with: root)
+//
+//    print(path ?? "no path")
+//
+//    guard var path else {
+//        throw MastodonAPIError("Could not build path from keys")
+//    }
+//
+//    path = path.appending(".json")
+//    print(path)
+//    return path
+//}
 
 //private func activityPubStyleJSON(forUsername:String, forKey key:String) throws -> Endpoint {
 //    let root = apiversion.publicDataEndpointPaths["id"]?.replacingOccurrences(of: "{handle}", with: forUsername) ?? ""
@@ -124,4 +128,4 @@ private func buildAccountInfoPath(account:String, forKey key:String) throws -> S
 //    return Endpoint(path: path, queryItems: [])
 //}
 
-}
+//}

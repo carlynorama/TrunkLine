@@ -9,64 +9,119 @@ import Foundation
 import APItizer
 
 extension MastodonServer {
+    public func newPost(message:String) async throws {
+        let path:String? = actions["new_status"]?.endPointPath
+        let url = try urlFrom(path: path!, prependBasePath: true)
+        
+        let returnData = try await post_URLEncoded(baseUrl:url, formData:["status":message], withAuth:true)
+        
+        print(String(data: returnData, encoding: .utf8)!)
+    }
     
-    public func testStatusCreation() {
+    
+    
+    
+    //NOTE Media uses v2 so needs different handling.
+    private func postMediaItem(fileAttachment:Attachment, altText:String) async throws -> String {
+        let mediaEndpoint = Endpoint(path:"/api/v2/media", queryItems: [])
+        let url = try urlFrom(endpoint: mediaEndpoint, prependBasePath: false)
+        
+        
+        let psudeoConfig = [
+            "description":altText
+        ]
+        
+        let (boundary, body) = try MultiPartFormEncoder.makeBodyData(stringItems: psudeoConfig, attachments: ["file" : fileAttachment])
+        
+        let returnData = try await post_FormBody(baseUrl: url, dataToSend: body, boundary: boundary, withAuth: true)
+        
+        //FAILS
+        //try await returnData.asValue(ofType: ItemMediaAttachment.self)
+        guard let dictionary = try await returnData.asDictionary()  else {
+            throw MastodonAPIError("TrunkLine postMediaItem could not make expected dictionary from return data.")
+        }
+        if let mediaID = dictionary["id"] as? String {
+            return mediaID
+        } else {
+            throw MastodonAPIError("TrunkLine postMediaItem did not find ID in response.")
+        }
+        
+    }
+    
+    public func attachmentBuilderTest(path:String) -> String {
         do {
-//            let newStatus = try APIVersion.StatusConfiguration(status: "hello message", media_ids: ["id1", "id2"])
-//            print(newStatus.makeQueries())
-//            let newStatus2 = try APIVersion.StatusConfiguration(status: "", media_ids: ["id1", "id2"])
-//            print(newStatus2.makeQueries())
-            let newStatus3 = try APIVersion.StatusConfiguration(status: "other hello")
-//            print(newStatus3.makeQueries())
-////            let newStatus4 = try APIVersion.StatusConfiguration(status: "", media_ids: [])
-////            print(newStatus4.makeQueries())
-//            let newStatus5 = try APIVersion.StatusConfiguration(status: nil, media_ids: nil)
-//            print(newStatus5.makeQueries())
-            var components = URLComponents()
-            components.scheme = "https"
-            components.host = host.absoluteString
-            components.path = apiBase! + "/statuses/"
-            //components.queryItems = newStatus3.makeQueries()
-            
-            guard let url = components.url else {
-                print("components:\(components)")
-                return
-                //throw Error("Invalid url for endpoint")
-            }
-            print(url)
+            let attachment = try makeImageAttachment(filePath: path)
+            return("yup \(attachment.fileName), \(attachment.mimeType)")
         } catch {
-            print(error)
+            return("nope")
         }
     }
     
-    public func writeSimpleStatus(string:String) async throws {
-        print("trying to post... \(string)")
-        let path = apiversion.endpointPaths["new_status"]
-        let url = try? urlFrom(path: path!, usingAPIBase: true)
-        var header:[String:String] = [:]
-        if let authentication {
-            header = try authentication.appendAuthHeader(to:header)
-            
-        } else {
-            throw MastodonAPIError.message("No authentication information avialable")
-        }
-        
-        header["Content-Type"] = "application/x-www-form-urlencoded; charset=utf-8"
-        
-        if let payload = try? APIVersion.StatusConfiguration(status: string).makeFormData() {
-            //TODO: BAD - I'm pointing at a RequestService implmentation.
-            let request =  HTTPRequestService.buildRequest(for: url!, with: header, using: .post, sending:payload)!
-            let (data, response) = try await URLSession.shared.data(for: request)
-            print(data, response)
-            guard let response = response as? HTTPURLResponse,
-                  response.statusCode == 200  else  {
-                         throw MastodonAPIError("Did not post.")
-            }
-            //return data
-            
-        } else {
-            throw MastodonAPIError("Could not make valid form data.")
+    public func attachmentBuilderTest(url:URL) -> String {
+        do {
+            let attachment = try makeImageAttachment(fileURL: url)
+            return("yup \(attachment.fileName), \(attachment.mimeType)")
+        } catch {
+            return("nope")
         }
     }
+    
+    func makeImageAttachment(filePath:String) throws -> Attachment {
+        try Attachment.makeFromFile(path: filePath, limitTypes: [.image])
+    }
+    
+    func makeImageAttachment(fileURL:URL) throws -> Attachment {
+        try Attachment.makeFrom(url: fileURL, limitTypes: [.image] )
+    }
+    
+    public func newPostWithOneMediaAttachmentImage(message:String, imageFilePath:String, imageAltText:String) async throws {
+        
+        
+        let fileAttachment = try makeImageAttachment(filePath: imageFilePath)
+        print("made file attachment.")
+        let mediaID = try await postMediaItem(fileAttachment: fileAttachment, altText: imageAltText)
+        print("posted media.")
+        let statusConfig = try StatusConfiguration(status: message, media_ids: [mediaID])
+        print("made satus config.")
+        let statusConfigData = try statusConfig.makeURLEncodedData()
+        
+        let path:String? = actions["new_status"]?.endPointPath
+        let url = try urlFrom(path: path!, prependBasePath: true)
+        
+        let returnData = try await post_URLEncoded(baseUrl: url, dataToSend: statusConfigData)
+        
+        print(String(data: returnData, encoding: .utf8)!)
+        
+    }
+    
+    func newPost() {
+        
+    }
+    
+    //    public func testPost() async throws {
+    //
+    //        let statusConfig = try StatusConfiguration(status: "This is a test message with a pre-uploaded media ID \(Date.now)", media_ids: ["109864064572998885", "109855908167179383"])
+    //        print("made satus config.")
+    //
+    //        let statusConfigString = try statusConfig.makeURLEncodedString()
+    //        let statusConfigData = try statusConfig.makeURLEncodedData()
+    //
+    //        print("------")
+    //        print(statusConfigString)
+    //        print("---")
+    //        print(String(data:statusConfigData, encoding: .utf8))
+    //        print("------")
+    //
+    //        let path:String? = actions["new_status"]?.endPointPath
+    //        let url = try urlFrom(path: path!, prependBasePath: true)
+    //
+    //        let returnData = try await post_URLEncoded(baseUrl: url, dataToSend: statusConfigData)
+    //
+    //        print(String(data: returnData, encoding: .utf8)!)
+    //
+    //    }
+    //
+    
     
 }
+
