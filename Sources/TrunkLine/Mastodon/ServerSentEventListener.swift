@@ -12,10 +12,6 @@
 
 import Foundation
 
-//Note this assumes that events have ONE data packet following them. If that is not the API this will need to be updated.
-
-
-
 public struct SSEStreamEvent:Hashable {
     public let lastEventId:String?
     public let message:String?
@@ -88,7 +84,7 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
                 
 
                 //asyncBytes.lines ignores empty lines had to make my own
-                var iterator = asyncBytes.allLines.makeAsyncIterator()
+                var iterator = asyncBytes.allLines_v1.makeAsyncIterator()
                 while let line = try await iterator.next() {
                     
                     let decodedLine = try await SSELine(line)
@@ -234,33 +230,46 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
 }
 
 extension AsyncSequence where Element == UInt8 {
-    var allLines:AsyncThrowingStream<String, Error> {
+    //Works.
+    var allLines_v1:AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
-            Task {
+            let bytesTask = Task {
                 var accumulator:[UInt8] = []
                 var iterator = self.makeAsyncIterator()
                 while let byte = try await iterator.next() {
                     //10 == \n
-                    if byte != 10 {
-                        accumulator.append(byte)
-                    } else {
-                        if accumulator.isEmpty {
-                            continuation.yield("")
-                        } else {
-                            if let line = String(data: Data(accumulator), encoding: .utf8) {
-                                continuation.yield(line)
-                            } else {
-                                throw MastodonAPIError("allLines: Couldn't make string from [UInt8] chunk")
-                            }
-                            
+                    if byte != 10 { accumulator.append(byte) }
+                    else {
+                        if accumulator.isEmpty { continuation.yield("") }
+                        else {
+                            if let line = String(data: Data(accumulator), encoding: .utf8) { continuation.yield(line) }
+                            else { throw MastodonAPIError("allLines: Couldn't make string from [UInt8] chunk") }
                             accumulator = []
+            }   }   }   }
+            continuation.onTermination = { @Sendable _ in
+                bytesTask.cancel()
+    }   }   }
+    
+    //Does not seem to work right.
+    var allLines_v2:AsyncThrowingStream<String, Error> {
+        return AsyncThrowingStream {
+            var accumulator:[UInt8] = []
+            var iterator = self.makeAsyncIterator()
+            while let byte = try await iterator.next() {
+                //10 == \n
+                if byte != 10 { accumulator.append(byte) }
+                else {
+                    if accumulator.isEmpty { return "" }
+                    else {
+                        if let line = String(data: Data(accumulator), encoding: .utf8) {
+                            return line
                         }
-                        
-                    }
-                }
-            }
+                        else {
+                            accumulator = []
+                            throw MastodonAPIError("allLines: Couldn't make string from [UInt8] chunk") }
+             }   }   }
+            return nil
         }
-        
     }
 }
 
