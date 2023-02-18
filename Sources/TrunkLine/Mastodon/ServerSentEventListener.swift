@@ -6,9 +6,20 @@
 //
 // In that case you need to use the URLSession delegate-based APIs (dataTask(with:) and so on), which will call the urlSession(_:dataTask:didReceive:) session delegate method with chunks of data as they arrive.
 //https://stackoverflow.com/questions/44602192/how-to-use-urlsessionstreamtask-with-urlsession-for-chunked-encoding-transfer/75466620#75466620
-
-//https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
 //https://www.hackingwithswift.com/articles/241/how-to-fetch-remote-data-the-easy-way-with-url-lines
+
+
+//------------- SPEC
+//https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
+
+//Streams must be decoded using the UTF-8 decode algorithm.
+//
+//The UTF-8 decode algorithm strips one leading UTF-8 Byte Order Mark (BOM), if any.
+//
+//The stream must then be parsed by reading everything line by line, with a U+000D CARRIAGE RETURN U+000A LINE FEED (CRLF) character pair, a single U+000A LINE FEED (LF) character not preceded by a U+000D CARRIAGE RETURN (CR) character, and a single U+000D CARRIAGE RETURN (CR) character not followed by a U+000A LINE FEED (LF) character being the ways in which a line can end.
+//------------- \SPEC
+
+
 
 import Foundation
 
@@ -48,10 +59,12 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
     }
     
     public init(url:URL, urlSession:URLSession? = nil) {
+        //--------- SPEC
         //GET
         //Accept: text/event-stream
         //Cache-Control: no-cache
         //Connection: keep-alive
+        //--------- \SPEC
         var request = URLRequest(url: url,cachePolicy: .reloadIgnoringLocalCacheData)
         request.setValue("text/event-stream", forHTTPHeaderField:"Accept")
         //TODO: confirm that keep-alive & no cache are true
@@ -75,10 +88,15 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
         return AsyncThrowingStream { continuation in
             if task != nil { task?.cancel() }
             task = Task {
+                
                 if dataTask != nil { dataTask?.cancel() }
                 let (asyncBytes, _) = try await self.session.bytes(for: self.urlRequest)
                 self.dataTask = asyncBytes.task
+
+                //SPEC: When a stream is parsed, a data buffer, an event type buffer, and a last event ID buffer must be associated with it.
+                //SPEC: They must be initialized to the empty string.
                 var eventBuilder:[String:String] = [:]
+                
                 //asyncBytes.lines ignores empty lines had to make my own
                 var iterator = asyncBytes.allLines_v1.makeAsyncIterator()
                 while let line = try await iterator.next() {
@@ -87,11 +105,11 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
                     let decodedLine = try await SSELine(line)
                     switch decodedLine {
                     case .event(let event_type):
-                        //Set the event type buffer to field value.
+                        //SPEC: Set the event type buffer to field value.
                         eventBuilder["event_type"] = event_type
                     case .data(let new_data):
                         print("data: \(new_data.count)")
-                        //Append the field value to the data buffer, then append a single U+000A LINE FEED (LF) character to the data buffer.
+                        //SPEC: Append the field value to the data buffer, then append a single U+000A LINE FEED (LF) character to the data buffer.
                         var currentData = ""
                         if eventBuilder["data"] != nil {
                             currentData.append(contentsOf: eventBuilder["data"]!)
@@ -100,7 +118,7 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
                         currentData.append("\u{000A}")
                         eventBuilder["data"] = currentData
                     case .id(let id):
-                        //set the last event ID buffer to the field value
+                        //SPEC: set the last event ID buffer to the field value
                         eventBuilder["last_event_ID"] = id
                     case .retry(let time):
                         setReconnectionTime(time)
@@ -170,14 +188,14 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
         init(_ candidateString:String) async throws {
             //print(candidateString)
             
-            //If the line is empty (a blank line) Dispatch the event
+            //SPEC: If the line is empty (a blank line) Dispatch the event
             if candidateString.isEmpty { self = Self.dispatch; return }
             
-            //If the line starts with a U+003A COLON character (:) Ignore the line.
+            //SPEC: If the line starts with a U+003A COLON character (:) Ignore the line.
             if candidateString.prefix(1) == ":" { self = Self.ignore; return }
             
-            //If the line contains a U+003A COLON character (:)
-            //Collect the characters on the line before the first U+003A COLON character (:), and let field be that string. Collect the characters on the line after the first U+003A COLON character (:), and let value be that string.
+            //SPEC: If the line contains a U+003A COLON character (:)
+            //SPEC: Collect the characters on the line before the first U+003A COLON character (:), and let field be that string. Collect the characters on the line after the first U+003A COLON character (:), and let value be that string.
             var splitResult = candidateString.split(separator: ":", maxSplits: 1).map(String.init)
             
             
@@ -186,11 +204,11 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
                 self = Self.ignore; return
             }
             
-            //If value starts with a U+0020 SPACE character, remove it from value.
-            //TODO: confirm U+0020 == " "
-            if splitResult[1].prefix(1) == " " {
+            //SPEC: If value starts with a U+0020 SPACE character, remove it from value.
+            //" ", ASCII 32, does seem to work, but might as well be explicit.
+            if splitResult[1].prefix(1) == "\u{0020}" {
                 //splitResult[1] = String(splitResult[1].trimmingPrefix(while: \.isWhitespace))
-                splitResult[1] = String(splitResult[1].trimmingPrefix(while: {$0 == " "}))
+                splitResult[1] = String(splitResult[1].trimmingPrefix(while: {$0 == "\u{0020}"}))
             }
             
             switch splitResult[0] {
@@ -199,11 +217,11 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
             case "data":
                 self = Self.data(splitResult[1])
             case "retry":
-                //If the field value consists of only ASCII digits, then interpret the field value as an integer in base ten, and set the event stream's reconnection time to that integer. Otherwise, ignore the field.
+                //SPEC: If the field value consists of only ASCII digits, then interpret the field value as an integer in base ten, and set the event stream's reconnection time to that integer. Otherwise, ignore the field.
                 if let value = Int(splitResult[1]) { self = Self.retry(value) }
                 else { self = Self.ignore }
             case "id":
-                //If the field value does not contain U+0000 NULL, then set the last event ID buffer to the field value. Otherwise, ignore the field.
+                //SPEC: If the field value does not contain U+0000 NULL, then set the last event ID buffer to the field value. Otherwise, ignore the field.
                 if !splitResult[1].contains("\u{0000}") { self = Self.id(splitResult[1]) }
                 else { self = Self.ignore }
             default:
