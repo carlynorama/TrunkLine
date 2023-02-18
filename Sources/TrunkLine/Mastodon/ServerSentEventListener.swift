@@ -77,16 +77,13 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
             task = Task {
                 if dataTask != nil { dataTask?.cancel() }
                 let (asyncBytes, _) = try await self.session.bytes(for: self.urlRequest)
-                
                 self.dataTask = asyncBytes.task
-                
                 var eventBuilder:[String:String] = [:]
-                
-
                 //asyncBytes.lines ignores empty lines had to make my own
                 var iterator = asyncBytes.allLines_v1.makeAsyncIterator()
                 while let line = try await iterator.next() {
-                    
+                    try Task.checkCancellation()
+                    print("line in loop: \(line)")
                     let decodedLine = try await SSELine(line)
                     switch decodedLine {
                     case .event(let event_type):
@@ -120,8 +117,11 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
                     }
                 }
             }
-            return
+            continuation.onTermination = { @Sendable _ in
+                self.cancel()
+            }
         }
+
         
     }
     
@@ -187,7 +187,6 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
             }
             
             //If value starts with a U+0020 SPACE character, remove it from value.
-            //I am interreting this as trim all leading whitespace which is not correct
             //TODO: confirm U+0020 == " "
             if splitResult[1].prefix(1) == " " {
                 //splitResult[1] = String(splitResult[1].trimmingPrefix(while: \.isWhitespace))
@@ -250,340 +249,30 @@ extension AsyncSequence where Element == UInt8 {
                 bytesTask.cancel()
     }   }   }
     
-    //Does not seem to work right.
-    var allLines_v2:AsyncThrowingStream<String, Error> {
-        return AsyncThrowingStream {
-            var accumulator:[UInt8] = []
-            var iterator = self.makeAsyncIterator()
-            while let byte = try await iterator.next() {
-                //10 == \n
-                if byte != 10 { accumulator.append(byte) }
-                else {
-                    if accumulator.isEmpty { return "" }
-                    else {
-                        if let line = String(data: Data(accumulator), encoding: .utf8) {
-                            return line
-                        }
-                        else {
-                            accumulator = []
-                            throw MastodonAPIError("allLines: Couldn't make string from [UInt8] chunk") }
-             }   }   }
-            return nil
-        }
-    }
+    //This code... looses bytes? Looses every-other packet somehow?
+    //Something isn't right with the accumulator.
+    //setting it to [] or not doesn't seem to make a difference, and it should?
+//    var allLines_v2:AsyncThrowingStream<String, Error> {
+//        return AsyncThrowingStream {
+//            var accumulator:[UInt8] = []
+//            for try await byte in self {
+//                //10 == \n
+//                if byte != 10 { accumulator.append(byte) }
+//                else {
+//                    if accumulator.isEmpty { return "" }
+//                    else {
+//                        //print(String(data: Data(accumulator), encoding: .utf8))
+//                        if let line = String(data: Data(accumulator), encoding: .utf8) {
+//                            //accumulator = [];
+//                            print("allLines_v2: \(line)")
+//                            return line
+//                        }
+//                        else {
+//                            //accumulator = [];
+//                            throw MastodonAPIError("allLines: Couldn't make string from [UInt8] chunk") }
+//             }    }   }
+//            return nil
+//        }
+//    }
 }
 
-
-//
-//
-//public class SSEListener: NSObject, URLSessionDataDelegate {
-//    private var urlRequest: URLRequest
-//    private var session: URLSession! = nil
-//
-//    var eventHandler:(SSEStreamEvent)->Void
-//
-//    public private(set) var accumulator:[SSEStreamEvent] = []
-//    private var dataTask:URLSessionDataTask?
-//    private var task:Task<Void, Error>?
-//    private var isListening:Bool = false
-//
-//    //    var url:URL {
-//    //        urlRequest.url
-//    //    }
-//
-//    public init(url:URL, urlSession:URLSession? = nil, handler: @escaping (SSEStreamEvent)->Void) {
-//        //we want
-//        //GET
-//        //Accept: text/event-stream
-//        //Cache-Control: no-cache
-//        //Connection: keep-alive
-//        var request = URLRequest(url: url,cachePolicy: .reloadIgnoringLocalCacheData)
-//        request.setValue("text/event-stream", forHTTPHeaderField:"Accept")
-//        //confirm that keep-alive & no cache are true
-//        self.urlRequest = request
-//
-//        self.eventHandler = handler
-//
-//        super.init()
-//        if urlSession != nil {
-//            self.session = urlSession!
-//        } else {
-//            let config = URLSessionConfiguration.default
-//            config.requestCachePolicy = .reloadIgnoringLocalCacheData
-//            self.session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
-//        }
-//    }
-//
-//    deinit {
-//        self.cancel()
-//    }
-//
-//    public func eventStream() -> AsyncThrowingStream<SSEStreamEvent, Error> {
-//        return AsyncThrowingStream { continuation in
-//
-//        }
-//    }
-//
-//    public func startListening() throws  {
-//        print(dataTask ?? "no task")
-//        task = Task { try await openSSEStream() }
-//        // try await task?.value
-//    }
-//
-//    public func stopListening() throws {
-//        self.cancel()
-//    }
-//
-//    private func cancel() {
-//        dataTask?.cancel()
-//        task?.cancel()
-//        dataTask = nil
-//    }
-//
-//    struct SSELine:Codable {
-//        let label:String
-//        let content:Data
-//
-//        init(_ candidateString:String) async throws {
-//            //print(candidateString)
-//            let splitResult = candidateString.split(separator: ":", maxSplits: 1).map(String.init)
-//            guard splitResult.count == 2 else {
-//                //print(candidateString)
-//                throw MastodonAPIError("SSELine init couldn't make proper split from:\(candidateString)")
-//            }
-//            self.label = splitResult[0]
-//            guard let data = splitResult[1].data(using: .utf8) else {
-//                print(candidateString)
-//                throw MastodonAPIError("SSELine init couldn't make data from string")
-//            }
-//            self.content = data
-//        }
-//    }
-//
-//    private func openSSEStream() async throws {
-//        let (asyncBytes, _) = try await session.bytes(for: urlRequest)
-//        dataTask = asyncBytes.task
-//
-//        var eventLabel:SSELine? = nil
-//
-//        for try await line in asyncBytes.lines {
-//            if !line.contains(":thump") && !(line == ":)") {
-//                let decodedLine = try await SSELine(line)
-//
-//                switch decodedLine.label {
-//                case "event":
-//                    eventLabel = decodedLine
-//                case "data":
-//                    guard let thisLabel = eventLabel else { throw MastodonAPIError("SSEStreamListener: No label for data") }
-//                    let event = SSEStreamEvent(type:String(data:thisLabel.content, encoding:.utf8)!, data: decodedLine.content)
-//
-//
-//
-//                    accumulator.append(event)
-//                    eventHandler(event)
-//
-//                    eventLabel = nil
-//                    print(accumulator.count, accumulator.last?.description ?? "", Date.now)
-//
-//                default:
-//                    eventLabel = nil
-//                }
-//
-//            }
-//            else { eventLabel = nil }
-//        }
-//    }
-//
-//    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-//        //NSLog("task data: %@", data as NSData)
-//        print("task data: %@", data as NSData)
-//    }
-//
-//    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-//        if let error = error as NSError? {
-//            //NSLog("task error: %@ / %d", error.domain, error.code)
-//            print("task error: %@ / %d", error.domain, error.code)
-//        } else {
-//            print("task complete")
-//            //NSLog("task complete")
-//        }
-//    }
-//}
-//
-//
-//
-//public class SSEListener: NSObject, URLSessionDataDelegate {
-//    private var urlRequest: URLRequest
-//    private var session: URLSession! = nil
-//
-//    private var dataTask:URLSessionDataTask?
-//    private var task:Task<Void, Error>?
-//
-//
-//    var isListening:Bool {
-//        dataTask != nil
-//    }
-//
-//
-//    public init(url:URL, urlSession:URLSession? = nil) {
-//        //we want
-//        //GET
-//        //Accept: text/event-stream
-//        //Cache-Control: no-cache
-//        //Connection: keep-alive
-//        var request = URLRequest(url: url,cachePolicy: .reloadIgnoringLocalCacheData)
-//        request.setValue("text/event-stream", forHTTPHeaderField:"Accept")
-//        //confirm that keep-alive & no cache are true
-//        self.urlRequest = request
-//
-//        super.init()
-//        if urlSession != nil {
-//            self.session = urlSession!
-//        } else {
-//            let config = URLSessionConfiguration.default
-//            config.requestCachePolicy = .reloadIgnoringLocalCacheData
-//            self.session = URLSession(configuration: config, delegate: self, delegateQueue: .main)
-//        }
-//    }
-//
-//    deinit {
-//        self.cancel()
-//    }
-//
-//    public func eventStream() -> AsyncThrowingStream<SSEStreamEvent, Error> {
-//        return AsyncThrowingStream { continuation in
-//            task = Task { let (asyncBytes, _) = try await self.session.bytes(for: self.urlRequest)
-//                self.dataTask = asyncBytes.task
-//
-//                var iterator = asyncBytes.lines.makeAsyncIterator()
-//                while let line = try await iterator.next() {
-//                    if !line.contains(":thump") && !(line == ":)") {
-//                        let decodedLine = try await SSELine(line)
-//                        if decodedLine.label == "event" {
-//                            guard let dataLine = try await iterator.next() else {
-//                                throw MastodonAPIError("openSSEStream never got a next line")
-//                            }
-//                            let dataEvent = try await SSELine(dataLine)
-//                            if dataEvent.label == "data" {
-//                                let event = SSEStreamEvent(type:String(data:decodedLine.content, encoding:.utf8)!, data: dataEvent.content)
-//
-//                                continuation.yield(event)
-//                            } else { print("unexpected not data \(line)") }
-//                        } else {
-//                            print("unkown event \(line)")
-//                        }
-//
-//                    }
-//
-//                }
-//                return
-//            }
-//        }
-//    }
-//
-////    public func startListening() throws  {
-////        print(dataTask ?? "no task")
-////        task = Task { try await openSSEStream() }
-////        // try await task?.value
-////    }
-//
-//    public func stopListening() throws {
-//        self.cancel()
-//    }
-//
-//    private func cancel() {
-//        dataTask?.cancel()
-//        task?.cancel()
-//        dataTask = nil
-//    }
-//
-//    public enum SSEMessageType {
-//        case event, data, id, retry
-//    }
-//
-//    struct SSELine:Codable {
-//        let label:String
-//        let content:Data
-//
-//        init(_ candidateString:String) async throws {
-//            //print(candidateString)
-//            let splitResult = candidateString.split(separator: ":", maxSplits: 1).map(String.init)
-//            guard splitResult.count == 2 else {
-//                //print(candidateString)
-//                throw MastodonAPIError("SSELine init couldn't make proper split from:\(candidateString)")
-//            }
-//            self.label = splitResult[0]
-//            guard let data = splitResult[1].data(using: .utf8) else {
-//                print(candidateString)
-//                throw MastodonAPIError("SSELine init couldn't make data from string")
-//            }
-//            self.content = data
-//        }
-//    }
-//
-////    private func openSSEStream() async throws {
-////        let (asyncBytes, _) = try await session.bytes(for: urlRequest)
-////        dataTask = asyncBytes.task
-////
-////        var iterator = asyncBytes.lines.makeAsyncIterator()
-////        while let line = try await iterator.next() {
-////            if !line.contains(":thump") && !(line == ":)") {
-////                let decodedLine = try await SSELine(line)
-////                if decodedLine.label == "event" {
-////                    guard let dataLine = try await iterator.next() else {
-////                        throw MastodonAPIError("openSSEStream never got a next line")
-////                    }
-////                    let dataEvent = try await SSELine(dataLine)
-////                    if dataEvent.label == "data" {
-////                        let event = SSEStreamEvent(type:String(data:decodedLine.content, encoding:.utf8)!, data: dataEvent.content)
-////                        accumulator.append(event)
-////                        print(accumulator.count, accumulator.last?.description ?? "", Date.now)
-////                    } else { print("unexpected not data \(line)") }
-////                } else {
-////                    print("unkown event \(line)")
-////                }
-////
-////            }}
-////    }
-//
-//    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-//        //NSLog("task data: %@", data as NSData)
-//        print("task data: %@", data as NSData)
-//    }
-//
-//    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-//        if let error = error as NSError? {
-//            //NSLog("task error: %@ / %d", error.domain, error.code)
-//            print("task error: %@ / %d", error.domain, error.code)
-//        } else {
-//            print("task complete")
-//            //NSLog("task complete")
-//        }
-//    }
-//}
-
-
-//    private func openSSEStream() async throws {
-//        let (asyncBytes, _) = try await session.bytes(for: urlRequest)
-//        dataTask = asyncBytes.task
-//
-//        var iterator = asyncBytes.lines.makeAsyncIterator()
-//        while let line = try await iterator.next() {
-//            if !line.contains(":thump") && !(line == ":)") {
-//                let decodedLine = try await SSELine(line)
-//                if decodedLine.label == "event" {
-//                    guard let dataLine = try await iterator.next() else {
-//                        throw MastodonAPIError("openSSEStream never got a next line")
-//                    }
-//                    let dataEvent = try await SSELine(dataLine)
-//                    if dataEvent.label == "data" {
-//                        let event = SSEStreamEvent(type:String(data:decodedLine.content, encoding:.utf8)!, data: dataEvent.content)
-//                        accumulator.append(event)
-//                        print(accumulator.count, accumulator.last?.description ?? "", Date.now)
-//                    } else { print("unexpected not data \(line)") }
-//                } else {
-//                    print("unkown event \(line)")
-//                }
-//
-//            }}
-//    }
