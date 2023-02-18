@@ -86,25 +86,14 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
                 
                 var eventBuilder:[String:String] = [:]
                 
-                //TODO: asyncBytes.lines ignores empty lines make something that doesn't (resourceBytes?)
-                var iterator = asyncBytes.lines.makeAsyncIterator()
-                while let line = try await iterator.next() {
 
+                //asyncBytes.lines ignores empty lines had to make my own
+                var iterator = asyncBytes.allLines.makeAsyncIterator()
+                while let line = try await iterator.next() {
+                    
                     let decodedLine = try await SSELine(line)
                     switch decodedLine {
                     case .event(let event_type):
-  
-                        //TODO: This is a work-around
-                        //This is a cludge b/c of empty line problem
-                        //dupe of dispatch code.
-                        if let _ = eventBuilder["event_type"] {
-                            if let sse = makeSSESrreamEvent(tryWith: eventBuilder) {
-                                continuation.yield(sse)
-                            } else { print("something went wrong")}
-                            eventBuilder["data"] = ""
-                            eventBuilder["event_type"] = ""
-                        }
-                        
                         //Set the event type buffer to field value.
                         eventBuilder["event_type"] = event_type
                     case .data(let new_data):
@@ -244,6 +233,36 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
     }
 }
 
+extension AsyncSequence where Element == UInt8 {
+    var allLines:AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                var accumulator:[UInt8] = []
+                var iterator = self.makeAsyncIterator()
+                while let byte = try await iterator.next() {
+                    //10 == \n
+                    if byte != 10 {
+                        accumulator.append(byte)
+                    } else {
+                        if accumulator.isEmpty {
+                            continuation.yield("")
+                        } else {
+                            if let line = String(data: Data(accumulator), encoding: .utf8) {
+                                continuation.yield(line)
+                            } else {
+                                throw MastodonAPIError("allLines: Couldn't make string from [UInt8] chunk")
+                            }
+                            
+                            accumulator = []
+                        }
+                        
+                    }
+                }
+            }
+        }
+        
+    }
+}
 
 
 //
