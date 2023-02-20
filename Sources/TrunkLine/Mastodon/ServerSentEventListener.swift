@@ -7,7 +7,7 @@
 // In that case you need to use the URLSession delegate-based APIs (dataTask(with:) and so on), which will call the urlSession(_:dataTask:didReceive:) session delegate method with chunks of data as they arrive.
 //https://stackoverflow.com/questions/44602192/how-to-use-urlsessionstreamtask-with-urlsession-for-chunked-encoding-transfer/75466620#75466620
 //https://www.hackingwithswift.com/articles/241/how-to-fetch-remote-data-the-easy-way-with-url-lines
-
+// "The right way"?:https://github.com/launchdarkly/swift-eventsource/blob/main/Source/LDSwiftEventSource.swift
 
 //------------- SPEC
 //https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
@@ -30,6 +30,7 @@ public struct SSEStreamEvent:Hashable {
     public let sourceURL:URL  //resolve after redirects?
     public let withCredentials:Bool
     
+    
     var description:String {
         "Event with lastID\(lastEventId ?? "") type:\(message ?? "") with \(data?.count ?? 0) bytes"
     }
@@ -47,12 +48,27 @@ enum SSEListenerError: Error, CustomStringConvertible {
     }
 }
 
-public class SSEListener: NSObject, URLSessionDataDelegate {
+
+//This is a less useful because not using the original URLSession dataTask pattern to access the bytes.
+public class SSEListener: NSObject, URLSessionDataDelegate, URLSessionTaskDelegate {
     private var urlRequest: URLRequest
     private var session: URLSession! = nil
     
     private var dataTask:URLSessionDataTask?
+    private var sessionTask:URLSessionTask?
     private var task:Task<Void, Error>?
+    
+    private var connectionTime:Date?
+    private var rephreshInterval:TimeInterval?
+    
+    
+    //SPEC: When a stream is parsed, a data buffer, an event type buffer, and a last event ID buffer must be associated with it.
+    //SPEC: They must be initialized to the empty string.
+    private var infoBuffer:[String:String] = [
+        //"last_event_ID":"",  //prefer this to be nil if not used.
+        "data": "",
+        "event_type": ""
+    ]
     
     var isListening:Bool {
         dataTask != nil
@@ -84,54 +100,40 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
         self.cancel()
     }
     
+
+    public func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask) {
+        print("I made a task:\(task)")
+        self.sessionTask = task
+    }
+
+//Fires on termination.
+//    public func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+//        print(metrics)
+//    }
+//
+//    public func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest) async -> URLRequest? {
+//        print("redirecting... \(String(describing: request.url))")
+//        return request
+//    }
+    
     public func eventStream() -> AsyncThrowingStream<SSEStreamEvent, Error> {
         return AsyncThrowingStream { continuation in
             if task != nil { task?.cancel() }
             task = Task {
                 
                 if dataTask != nil { dataTask?.cancel() }
-                let (asyncBytes, _) = try await self.session.bytes(for: self.urlRequest)
+                let (asyncBytes, _) = try await self.session.bytes(for: self.urlRequest, delegate: self)
                 self.dataTask = asyncBytes.task
 
-                //SPEC: When a stream is parsed, a data buffer, an event type buffer, and a last event ID buffer must be associated with it.
-                //SPEC: They must be initialized to the empty string.
-                var eventBuilder:[String:String] = [:]
-                
                 //asyncBytes.lines ignores empty lines had to make my own
                 var iterator = asyncBytes.allLines_v1.makeAsyncIterator()
                 while let line = try await iterator.next() {
-                    try Task.checkCancellation()
-                    print("line in loop: \(line)")
+                    //print("line in loop: \(line)")
                     let decodedLine = try await SSELine(line)
-                    switch decodedLine {
-                    case .event(let event_type):
-                        //SPEC: Set the event type buffer to field value.
-                        eventBuilder["event_type"] = event_type
-                    case .data(let new_data):
-                        print("data: \(new_data.count)")
-                        //SPEC: Append the field value to the data buffer, then append a single U+000A LINE FEED (LF) character to the data buffer.
-                        var currentData = ""
-                        if eventBuilder["data"] != nil {
-                            currentData.append(contentsOf: eventBuilder["data"]!)
-                        }
-                        currentData.append(contentsOf: new_data)
-                        currentData.append("\u{000A}")
-                        eventBuilder["data"] = currentData
-                    case .id(let id):
-                        //SPEC: set the last event ID buffer to the field value
-                        eventBuilder["last_event_ID"] = id
-                    case .retry(let time):
-                        setReconnectionTime(time)
-                    case .ignore:
-                        print("ignore me")
-                        break
-                    case .dispatch:
-                        if let sse = makeSSESrreamEvent(tryWith: eventBuilder) {
-                            print(sse)
-                            continuation.yield(sse)
-                        } else { print("something went wrong")}
-                        eventBuilder["data"] = ""
-                        eventBuilder["event_type"] = ""
+                    let result = processSSELine(buffer: infoBuffer, line: decodedLine)
+                    infoBuffer = result.buffer
+                    if let sse = result.sse {
+                        continuation.yield(sse)
                     }
                 }
             }
@@ -143,8 +145,49 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
         
     }
     
+    private func processSSELine(buffer:[String:String], line:SSELine) -> (buffer:[String:String], sse:SSEStreamEvent?) {
+        var mBuffer = buffer
+        switch line {
+            case .event(let event_type):
+                //SPEC: Set the event type buffer to field value.
+                mBuffer["event_type"] = event_type
+            case .data(let new_data):
+                //print("data: \(new_data.count)")
+                //SPEC: Append the field value to the data buffer, then append a single U+000A LINE FEED (LF) character to the data buffer.
+                var currentData = ""
+                if mBuffer["data"] != nil {
+                    currentData.append(contentsOf: mBuffer["data"]!)
+                }
+                currentData.append(contentsOf: new_data)
+                currentData.append("\u{000A}")
+                mBuffer["data"] = currentData
+            case .id(let id):
+                //SPEC: set the last event ID buffer to the field value
+                mBuffer["last_event_ID"] = id
+            case .retry(let time):
+                setReconnectionTime(time)
+            case .ignore:
+                break
+            case .comment(let message):
+                print("stream comment:\(message)") //should maybe just ignore, but want to give option of retaining comment.
+                break
+            case .dispatch:
+                if let sse = makeSSESrreamEvent(tryWith: mBuffer) {
+                    //print(sse)
+                    mBuffer["data"] = ""
+                    mBuffer["event_type"] = ""
+                    //continuation.yield(sse)
+                    return (mBuffer, sse)
+                } else { print("something went wrong")}
+                mBuffer["data"] = ""
+                mBuffer["event_type"] = ""
+        }
+        return (mBuffer, nil)
+    }
+    
+    
     func makeSSESrreamEvent(tryWith tmp:[String:String]) -> SSEStreamEvent? {
-        print(tmp)
+        //print(tmp)
         if tmp.isEmpty { return nil }
         if tmp.allSatisfy({ $1.isEmpty }) { return nil }
         var eventBuilder = tmp
@@ -183,7 +226,7 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
     
     
     enum SSELine {
-        case event(String), data(String), id(String), retry(Int), ignore, dispatch
+        case event(String), data(String), id(String), retry(Int), ignore, comment(String), dispatch
         
         init(_ candidateString:String) async throws {
             //print(candidateString)
@@ -192,7 +235,11 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
             if candidateString.isEmpty { self = Self.dispatch; return }
             
             //SPEC: If the line starts with a U+003A COLON character (:) Ignore the line.
-            if candidateString.prefix(1) == ":" { self = Self.ignore; return }
+            if candidateString.prefix(1) == ":" {
+                var message = candidateString
+                message.removeFirst()
+                self = Self.comment(message); return
+            }
             
             //SPEC: If the line contains a U+003A COLON character (:)
             //SPEC: Collect the characters on the line before the first U+003A COLON character (:), and let field be that string. Collect the characters on the line after the first U+003A COLON character (:), and let value be that string.
@@ -230,39 +277,33 @@ public class SSEListener: NSObject, URLSessionDataDelegate {
         }
     }
     
-    public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-        //NSLog("task data: %@", data as NSData)
-        print("task data: %@", data as NSData)
-    }
-    
-    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error = error as NSError? {
-            //NSLog("task error: %@ / %d", error.domain, error.code)
-            print("task error: %@ / %d", error.domain, error.code)
-        } else {
-            print("task complete")
-            //NSLog("task complete")
-        }
-    }
+
 }
 
 extension AsyncSequence where Element == UInt8 {
     //Works.
     var allLines_v1:AsyncThrowingStream<String, Error> {
+        
         AsyncThrowingStream { continuation in
+            //with a U+000D CARRIAGE RETURN U+000A LINE FEED (CRLF) character pair, a single U+000A LINE FEED (LF) character not preceded by a U+000D CARRIAGE RETURN (CR) character, and a single U+000D CARRIAGE RETURN (CR) character not followed by a U+000A LINE FEED (LF) character being the ways in which a line can end.
+            //let lineBreaks:[UInt8] = [13,10] //U+000D CARRIAGE RETURN, U+000A LINE FEED (LF)
             let bytesTask = Task {
                 var accumulator:[UInt8] = []
                 var iterator = self.makeAsyncIterator()
+                var CRFlag = false
                 while let byte = try await iterator.next() {
-                    //10 == \n
-                    if byte != 10 { accumulator.append(byte) }
-                    else {
+                    if CRFlag || byte == 10 {
                         if accumulator.isEmpty { continuation.yield("") }
                         else {
                             if let line = String(data: Data(accumulator), encoding: .utf8) { continuation.yield(line) }
                             else { throw MastodonAPIError("allLines: Couldn't make string from [UInt8] chunk") }
                             accumulator = []
-            }   }   }   }
+                        }
+                    } else {
+                        accumulator.append(byte)
+                    }
+                    CRFlag = (byte == 13)
+            }   }
             continuation.onTermination = { @Sendable _ in
                 bytesTask.cancel()
     }   }   }
