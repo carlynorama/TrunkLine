@@ -23,6 +23,7 @@ enum MastodonAPIError: Error, CustomStringConvertible {
 public struct MastodonServer:APIService, Authorizable {
     public private(set)var serverScheme: URIScheme
     public var requestService: RequestService
+    var streamService: SSEListener?
     public private(set) var serverHost: URL
     public var serverPort: Int? = nil
     //public private(set) var apiversion = APIVersion()

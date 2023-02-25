@@ -87,7 +87,8 @@ public extension MastodonServer {
     // MARK: - ContactAccount
     struct ContactAccount: Codable {
         public let id, username, acct, displayName: String
-        public let locked, bot, discoverable, group: Bool
+        public let locked, bot, group: Bool
+        public let discoverable: Bool?
         public let createdAt, note: String
         public let url: String
         public let avatar, avatarStatic, header, headerStatic: String
