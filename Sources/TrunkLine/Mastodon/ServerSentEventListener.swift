@@ -53,8 +53,18 @@ extension MastodonServer {
     
 
     
-    mutating public func getSSEStream(url:URL) async throws -> AsyncStream<MastodonStreamEvent> {
-        if streamService == nil { streamService = SSEListener(url: url) } else {
+    mutating public func getSSEStream(url:URL, withAtuh:Bool = false) async throws -> AsyncStream<MastodonStreamEvent> {
+        if streamService == nil {
+            if withAtuh {
+                print(authentication)
+                //TODO: needed auth is nil handling. Job for delegate? 
+                streamService = SSEListener(url: url, authentication: authentication)
+            }
+            else {
+                streamService = SSEListener(url: url)
+            }
+        }
+        else {
             //TODO: Build in the ability to handle more than one stream. In SSEListener or MastodonServer or combined.
             throw MastodonAPIError("Someone is already streaming...")
         }
