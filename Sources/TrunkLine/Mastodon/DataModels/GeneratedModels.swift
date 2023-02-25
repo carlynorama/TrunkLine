@@ -11,25 +11,42 @@ import Foundation
 public extension MastodonServer {
     
     // MARK: - MastodonStatusItem
-    struct StatusItem: Codable, Identifiable {
+    struct StatusItem: Codable, Identifiable, Equatable, Hashable {
+        public static func debugDecoder(_ string:String) {
+            _ = string.data(using: .utf8)!.verboseDecode(ofType: Self.self)
+            print("----------------------------------")
+            print(string)
+            print("----------------------------------")
+        }
+        
+        public static func == (lhs: MastodonServer.StatusItem, rhs: MastodonServer.StatusItem) -> Bool {
+            lhs.hashValue == rhs.hashValue
+        }
+        
+        public func hash(into hasher: inout Hasher) {
+            hasher.combine(id)
+            hasher.combine(content)
+        }
+        
         //Appears to be always
         public let id, createdAt: String
         public let account: Account
         public let content: String
         public let sensitive: Bool
         public let spoilerText: String
-        public let visibility: Visibility
+        public let visibility: Visibility  //check Visibility
         public let repliesCount, reblogsCount, favouritesCount: Int
         public let uri, url: String
         
         //Appears to be optional
         public let language: String?
-        public let inReplyToID, inReplyToAccountID: String?
+        public let inReplyToID, inReplyToAccountID: String?  //vs JSONNull
         public let favourited, reblogged, muted, bookmarked: Bool?
         public let reblog: String?
         public let application: Application?
         public let mediaAttachments: [ItemMediaAttachment]?
-        public let mentions, tags, emojis: [JSONAny]?
+        public let mentions, emojis: [JSONAny]?
+        public let tags: [Tag]?
         public let card: Card?
         public let poll: Poll?
         
@@ -61,7 +78,8 @@ public extension MastodonServer {
     // MARK: - Account
     struct Account: Codable, Identifiable {
         public let id, username, acct, displayName: String
-        public let locked, bot, discoverable, group: Bool
+        public let locked, bot, group: Bool
+        public let discoverable: Bool?
         public let createdAt, note: String
         public let url: String
         public let avatar, avatarStatic: String
@@ -137,11 +155,13 @@ public extension MastodonServer {
         }
     }
     
+
+    
     // MARK: - MediaAttachment
     struct ItemMediaAttachment: Codable,Identifiable {
         public let id, type: String
-        public let url, previewURL, remoteURL: String
-        public let previewRemoteURL, textURL: String?
+        public let url, previewURL: String
+        public let remoteURL, previewRemoteURL, textURL: String?
         public let meta: MastodonServer.MediaMeta?
         public let mediaAttachmentDescription, blurhash: String?
         
@@ -179,7 +199,7 @@ public extension MastodonServer {
     struct Poll: Codable {
         public let id, expiresAt: String
         public let expired, multiple: Bool
-        public let votesCount, votersCount: Int
+        public let votesCount, votersCount: Int?
         public let options: [PollOption]
         
         enum CodingKeys: String, CodingKey {
@@ -203,6 +223,11 @@ public extension MastodonServer {
         }
     }
     
+    //MARK: Tag
+    struct Tag: Codable {
+        let name: String
+        let url: String
+    }
     
     // MARK: - Encode/decode helpers
     
