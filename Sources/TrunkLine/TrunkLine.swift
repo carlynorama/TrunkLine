@@ -7,6 +7,7 @@ public struct TrunkLine {
     public init() {
     }
     
+    #if !os(Linux)
     public static func fetchAuthFromKeychain(account:String, service:String, keyBase:String = Authentication.defaultKeyBase) throws -> Authentication {
         do {
             let new = try Authentication.makeFromKeyChain(account: account, service: service, keyBase: keyBase)
@@ -17,6 +18,7 @@ public struct TrunkLine {
         }
         
     }
+    #endif
     
     public static func loadDotEnv() throws {
        try EnvironmentLoading.loadDotEnv()

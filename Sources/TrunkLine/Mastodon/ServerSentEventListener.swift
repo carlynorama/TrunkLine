@@ -32,7 +32,7 @@ public func debugStatus(_ string:String) {
     print("----------------------------------")
 }
 
-
+if !os(Linux)
 extension MastodonServer {
     public enum MastodonStreamEvent:Hashable {
         //case dictionary([String:String])
@@ -125,3 +125,4 @@ fileprivate extension AsyncStream {
     }
   }
 }
+#endif
