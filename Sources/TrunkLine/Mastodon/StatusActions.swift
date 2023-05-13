@@ -74,7 +74,7 @@ extension MastodonServer {
         try Attachment.makeFrom(url: fileURL, limitTypes: [.image] )
     }
     
-    public func newPostWithOneMediaAttachmentImage(message:String, imageFilePath:String, imageAltText:String) async throws {
+    public func newPostWithImage(message:String, imageFilePath:String, imageAltText:String) async throws {
         
         
         let fileAttachment = try makeImageAttachment(filePath: imageFilePath)
