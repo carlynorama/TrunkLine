@@ -57,6 +57,8 @@ public struct MastodonServer:APIService, Authorizable {
     public mutating func authorize(_ auth:Authentication) {
         authentication = auth
     }
+
+    #if !os(Linux)
     //account: "TrunkLineLib_tipsyrobot", service: "access-token", keyBase: ""
     public mutating func tryAuthFromKeychain(account:String, service:String, keyBase:String) throws {
         let auth = try TrunkLine.fetchAuthFromKeychain(account: account, service: service, keyBase: keyBase)
@@ -70,6 +72,7 @@ public struct MastodonServer:APIService, Authorizable {
         //print(self)
         
     }
+    #endif
     
     public func checkCredential() async throws -> Data {
         let path = actions["verify"]!.endPointPath
